@@ -1,0 +1,775 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>MediCare — Secure Login</title>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --navy:   #0d1f33;
+      --navy2:  #1a2e44;
+      --teal:   #00c9a7;
+      --teal-d: #00a88a;
+      --white:  #ffffff;
+      --off:    #f4f8f7;
+      --muted:  #718096;
+      --text:   #1a202c;
+      --border: #e2e8f0;
+      --red:    #ef4444;
+    }
+    body { font-family:'Instrument Sans',sans-serif; background:var(--navy); min-height:100vh; display:flex; }
+
+    /* ── LEFT ── */
+    .left {
+      width:44%; background:linear-gradient(155deg,#0d1f33 0%,#082a1e 55%,#0a2e22 100%);
+      position:sticky; top:0; height:100vh;
+      display:flex; flex-direction:column; justify-content:space-between;
+      padding:44px; overflow:hidden;
+    }
+    .left::before { content:''; position:absolute; width:600px; height:600px;
+      background:radial-gradient(circle,rgba(0,201,167,.12) 0%,transparent 60%);
+      top:-150px; left:-150px; pointer-events:none; }
+    .left::after  { content:''; position:absolute; width:300px; height:300px;
+      background:radial-gradient(circle,rgba(0,201,167,.07) 0%,transparent 60%);
+      bottom:60px; right:-60px; pointer-events:none; }
+
+    .brand { position:relative; z-index:1; display:flex; align-items:center; gap:14px; }
+    .brand-icon { width:46px; height:46px; background:linear-gradient(135deg,var(--teal-d),var(--teal));
+      border-radius:13px; display:flex; align-items:center; justify-content:center; font-size:22px;
+      box-shadow:0 8px 24px rgba(0,201,167,.3); }
+    .brand-name { font-family:'Syne',sans-serif; font-size:19px; font-weight:800; color:#fff; }
+    .brand-sub  { font-size:11px; color:rgba(255,255,255,.4); letter-spacing:.08em; text-transform:uppercase; margin-top:2px; }
+
+    .tagline { position:relative; z-index:1; }
+    .tagline h1 { font-family:'Syne',sans-serif; font-size:clamp(28px,3.2vw,42px); font-weight:800;
+      color:#fff; line-height:1.2; margin-bottom:14px; }
+    .tagline h1 em { color:var(--teal); font-style:normal; }
+    .tagline p { font-size:14px; color:rgba(255,255,255,.5); line-height:1.75; max-width:310px; }
+
+    .trust-items { position:relative; z-index:1; display:flex; flex-direction:column; gap:9px; }
+    .trust-item { display:flex; align-items:center; gap:12px;
+      background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.07);
+      border-radius:11px; padding:11px 15px; }
+    .trust-item .ti { font-size:18px; }
+    .trust-item .tt { font-size:13px; font-weight:600; color:#fff; }
+    .trust-item .td { font-size:11px; color:rgba(255,255,255,.38); margin-top:2px; }
+
+    /* ── RIGHT ── */
+    .right { flex:1; background:var(--off); display:flex; align-items:flex-start;
+      justify-content:center; padding:28px 32px; overflow-y:auto; min-height:100vh; }
+    .form-wrap { width:100%; max-width:420px; padding:16px 0; }
+
+    /* Role pills */
+    .role-pills { display:flex; gap:7px; margin-bottom:18px; }
+    .rpill { flex:1; padding:9px 6px; border:1.5px solid var(--border);
+      border-radius:10px; background:#fff; font-family:'Instrument Sans',sans-serif;
+      font-size:12px; font-weight:600; color:var(--muted); cursor:pointer;
+      transition:all .2s; text-align:center; }
+    .rpill:hover { border-color:var(--teal); color:var(--teal); }
+    .rpill.active { border-color:var(--navy2); background:var(--navy2); color:#fff; }
+
+    /* Tabs */
+    .tabs { display:flex; background:#fff; border-radius:11px; padding:4px;
+      box-shadow:0 2px 10px rgba(0,0,0,.06); margin-bottom:22px; }
+    .tab { flex:1; padding:9px; border:none; background:none;
+      font-family:'Instrument Sans',sans-serif; font-size:14px; font-weight:600;
+      color:var(--muted); cursor:pointer; border-radius:8px; transition:all .2s; }
+    .tab.active { background:var(--navy2); color:#fff; box-shadow:0 2px 8px rgba(26,46,68,.2); }
+
+    /* Card */
+    .card { background:#fff; border-radius:18px; padding:22px 20px;
+      box-shadow:0 4px 20px rgba(0,0,0,.06); }
+    .card h2 { font-family:'Syne',sans-serif; font-size:20px; font-weight:800;
+      color:var(--navy2); margin-bottom:3px; }
+    .card .sub { font-size:13px; color:var(--muted); margin-bottom:16px; }
+
+    .badge { display:inline-flex; align-items:center; gap:5px;
+      padding:4px 11px; border-radius:20px; font-size:12px; font-weight:700; margin-bottom:16px; }
+    .badge.doctor       { background:#e0f2fe; color:#0369a1; }
+    .badge.receptionist { background:#fce7f3; color:#9d174d; }
+    .badge.patient      { background:#dcfce7; color:#166534; }
+
+    .fg { margin-bottom:10px; }
+    .fg label { display:block; font-size:12px; font-weight:600; color:var(--navy2); margin-bottom:5px; }
+    .fg input, .fg select {
+      width:100%; padding:9px 12px; border:1.5px solid var(--border);
+      border-radius:10px; font-family:'Instrument Sans',sans-serif; font-size:14px;
+      color:var(--text); background:#fafafa; outline:none; transition:border-color .2s,box-shadow .2s; }
+    .fg input:focus, .fg select:focus {
+      border-color:var(--teal); box-shadow:0 0 0 3px rgba(0,201,167,.1); background:#fff; }
+    .fg .hint { font-size:11px; color:var(--muted); margin-top:4px; }
+    .fg-row { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+
+    .sbar  { height:3px; background:var(--border); border-radius:3px; margin-top:5px; overflow:hidden; }
+    .sfill { height:100%; border-radius:3px; width:0; transition:width .3s,background .3s; }
+
+    .btn-primary {
+      width:100%; padding:12px; margin-top:6px;
+      background:linear-gradient(135deg,var(--navy2),#0d1f33);
+      color:#fff; border:none; border-radius:10px;
+      font-family:'Instrument Sans',sans-serif; font-size:15px; font-weight:700;
+      cursor:pointer; transition:transform .2s,box-shadow .2s,opacity .2s; }
+    .btn-primary:hover { transform:translateY(-2px); box-shadow:0 8px 22px rgba(13,31,51,.28); }
+    .btn-primary:disabled { opacity:.6; cursor:not-allowed; transform:none; }
+
+    .msg { padding:10px 13px; border-radius:8px; font-size:13px; font-weight:500;
+      margin-bottom:12px; display:none; }
+    .msg.show    { display:block; }
+    .msg.success { background:#dcfce7; color:#166534; border:1px solid #86efac; }
+    .msg.error   { background:#fee2e2; color:#991b1b; border:1px solid #fca5a5; }
+    .msg.info    { background:#e0f2fe; color:#0369a1; border:1px solid #7dd3fc; }
+
+    .divider { display:flex; align-items:center; gap:10px; margin:16px 0;
+      color:var(--muted); font-size:12px; }
+    .divider::before,.divider::after { content:''; flex:1; height:1px; background:var(--border); }
+
+    /* ── OTP STEP ── */
+    #otp-step { display:none; }
+    .otp-row { display:flex; gap:7px; margin-bottom:12px; }
+    .otp-digit { flex:1; height:52px; text-align:center; font-size:22px; font-weight:700;
+      border:1.5px solid var(--border); border-radius:10px; background:#fafafa;
+      font-family:'Instrument Sans',sans-serif; outline:none; transition:border-color .2s; }
+    .otp-digit:focus { border-color:var(--teal); background:#fff; }
+    .otp-meta { text-align:center; font-size:12px; color:var(--muted); margin-bottom:10px; }
+    .otp-resend { color:var(--teal); font-weight:600; cursor:pointer; text-decoration:underline; }
+    .back-link { font-size:12px; color:var(--muted); text-align:center; cursor:pointer;
+      margin-top:8px; display:block; }
+
+    /* ── ID PREVIEW ── */
+    .id-preview { background:#e0f2fe; border:1px dashed #38bdf8; border-radius:8px;
+      padding:9px 13px; margin-bottom:11px; display:none; }
+    .id-preview p   { font-size:11px; color:#0369a1; font-weight:600; margin-bottom:3px; }
+    .id-preview .gid { font-family:monospace; font-size:17px; font-weight:700; color:var(--navy2); letter-spacing:1.5px; }
+
+    /* ── CONSENT MODAL ── */
+    .overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.65); z-index:900;
+      justify-content:center; align-items:center; padding:16px; }
+    .overlay.show { display:flex; }
+    .consent-card { background:#fff; border-radius:18px; padding:28px 24px;
+      max-width:520px; width:100%; max-height:90vh; overflow-y:auto;
+      box-shadow:0 20px 60px rgba(0,0,0,.22); animation:pop .35s cubic-bezier(.175,.885,.32,1.275); }
+    @keyframes pop { from{transform:scale(.8);opacity:0} to{transform:scale(1);opacity:1} }
+    .consent-card h2 { font-family:'Syne',sans-serif; font-size:19px; font-weight:800; color:var(--navy2); margin-bottom:6px; }
+    .consent-tag { background:#fef9c3; color:#92400e; border:1px solid #fde68a; border-radius:20px;
+      padding:3px 11px; font-size:11px; font-weight:700; display:inline-block; margin-bottom:14px; }
+    .consent-scroll { max-height:270px; overflow-y:auto; border:1px solid var(--border);
+      border-radius:10px; padding:14px 16px; background:#fafafa; font-size:13px;
+      color:#374151; line-height:1.8; margin-bottom:14px; }
+    .consent-scroll h4 { font-size:13px; font-weight:700; color:var(--navy2); margin:10px 0 5px; }
+    .consent-check { display:flex; align-items:flex-start; gap:9px; margin-bottom:14px; }
+    .consent-check input { width:17px; height:17px; margin-top:2px; accent-color:var(--teal); cursor:pointer; }
+    .consent-check label { font-size:13px; color:var(--text); line-height:1.5; cursor:pointer; }
+    .consent-btns { display:flex; gap:9px; }
+    .btn-consent { flex:1; padding:11px; background:linear-gradient(135deg,var(--teal-d),var(--teal));
+      color:var(--navy); border:none; border-radius:10px;
+      font-family:'Instrument Sans',sans-serif; font-size:14px; font-weight:700;
+      cursor:pointer; transition:transform .2s,box-shadow .2s; }
+    .btn-consent:hover { transform:translateY(-1px); box-shadow:0 6px 18px rgba(0,201,167,.3); }
+    .btn-consent:disabled { opacity:.5; cursor:not-allowed; transform:none; }
+    .btn-decline { padding:11px 18px; background:#f3f4f6; color:var(--muted); border:none;
+      border-radius:10px; font-family:'Instrument Sans',sans-serif; font-size:14px; font-weight:600; cursor:pointer; }
+
+    /* ── SUCCESS OVERLAY ── */
+    #success-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.6);
+      z-index:999; justify-content:center; align-items:center; }
+    #success-overlay.show { display:flex; }
+    .sc-card { background:#fff; border-radius:22px; padding:44px 32px; text-align:center;
+      max-width:370px; width:90%; box-shadow:0 20px 60px rgba(0,0,0,.2); animation:pop .4s cubic-bezier(.175,.885,.32,1.275); }
+    .sc-circle { width:78px; height:78px; background:linear-gradient(135deg,var(--navy2),var(--teal));
+      border-radius:50%; margin:0 auto 18px; display:flex; align-items:center; justify-content:center; }
+    .sc-circle svg { width:34px; height:34px; }
+    .sc-card h2 { font-family:'Syne',sans-serif; font-size:20px; font-weight:800; color:var(--navy2); margin-bottom:7px; }
+    .sc-card p  { font-size:13px; color:var(--muted); line-height:1.6; }
+    .sc-id-box  { background:#e6faf7; border:1px dashed var(--teal); border-radius:10px; padding:13px; margin:14px 0; }
+    .sc-id-box p  { font-size:11px; color:var(--teal-d); font-weight:700; margin-bottom:3px; }
+    .sc-id-box .bid { font-family:monospace; font-size:20px; font-weight:700; color:var(--navy2); letter-spacing:2px; }
+    .sc-id-box small { font-size:11px; color:var(--muted); }
+    .sc-btn { margin-top:8px; padding:11px 28px;
+      background:linear-gradient(135deg,var(--navy2),var(--teal-d));
+      color:#fff; border:none; border-radius:28px;
+      font-family:'Instrument Sans',sans-serif; font-size:14px; font-weight:700;
+      cursor:pointer; transition:transform .2s,box-shadow .2s; }
+    .sc-btn:hover { transform:translateY(-2px); box-shadow:0 7px 20px rgba(0,168,138,.35); }
+
+    @media (max-width:768px) { .left{display:none;} .right{padding:16px;} }
+  </style>
+</head>
+<body>
+
+<!-- ── LEFT PANEL ── -->
+<div class="left">
+  <div class="brand">
+    <div class="brand-icon">🏥</div>
+    <div>
+      <div class="brand-name">MediCare</div>
+      <div class="brand-sub">General Hospital</div>
+    </div>
+  </div>
+
+  <div class="tagline">
+    <h1>Your health,<br/>our <em>priority.</em></h1>
+    <p>Enterprise-grade security protecting every patient record and medical interaction.</p>
+  </div>
+
+  <div class="trust-items">
+    <div class="trust-item">
+      <div class="ti">🔐</div>
+      <div><div class="tt">JWT Authentication</div><div class="td">Short-lived tokens, role-scoped access</div></div>
+    </div>
+    <div class="trust-item">
+      <div class="ti">📱</div>
+      <div><div class="tt">Two-Factor Authentication</div><div class="td">SMS OTP + TOTP authenticator app</div></div>
+    </div>
+    <div class="trust-item">
+      <div class="ti">🔒</div>
+      <div><div class="tt">bcrypt Password Hashing</div><div class="td">Cost-12 — industry standard, never plain text</div></div>
+    </div>
+    <div class="trust-item">
+      <div class="ti">📋</div>
+      <div><div class="tt">Full Audit Trail</div><div class="td">Every action logged with timestamp & IP</div></div>
+    </div>
+    <div class="trust-item">
+      <div class="ti">🛡️</div>
+      <div><div class="tt">Row Level Security</div><div class="td">Patients see only their own data</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ── RIGHT PANEL ── -->
+<div class="right">
+  <div class="form-wrap">
+
+    <div class="role-pills">
+      <button class="rpill active" id="pill-doctor"       onclick="setRole('doctor')">🩺 Doctor</button>
+      <button class="rpill"        id="pill-receptionist" onclick="setRole('receptionist')">🗂️ Reception</button>
+      <button class="rpill"        id="pill-patient"      onclick="setRole('patient')">👤 Patient</button>
+    </div>
+
+    <div class="tabs">
+      <button class="tab active" id="tab-signin" onclick="switchTab('signin')">Sign In</button>
+      <button class="tab"        id="tab-signup" onclick="switchTab('signup')">Sign Up</button>
+    </div>
+
+    <!-- ══ SIGN IN ══ -->
+    <div id="form-signin" class="card">
+      <div id="signin-badge" class="badge doctor">🩺 Doctor</div>
+      <h2 id="signin-title">Welcome Back</h2>
+      <p class="sub" id="signin-sub">Sign in with your Doctor ID or email</p>
+      <div id="signin-msg" class="msg"></div>
+
+      <!-- Step 1: Credentials -->
+      <div id="creds-step">
+        <div class="fg">
+          <label>Doctor ID or Email</label>
+          <input type="text" id="signin-id" placeholder="MCR-CARD-4821-RS or email"
+                 onkeydown="if(event.key==='Enter')handleSignIn()"/>
+          <div class="hint" id="signin-hint">Use your unique ID or email address</div>
+        </div>
+        <div class="fg">
+          <label>Password</label>
+          <input type="password" id="signin-pw" placeholder="Your password"
+                 onkeydown="if(event.key==='Enter')handleSignIn()"/>
+        </div>
+        <button class="btn-primary" id="signin-btn" onclick="handleSignIn()">Sign In →</button>
+      </div>
+
+      <!-- Step 2: OTP -->
+      <div id="otp-step">
+        <p style="font-size:13px;color:var(--muted);margin-bottom:12px;">
+          We've sent a 6-digit code to your registered phone. Enter it below.
+        </p>
+        <div class="otp-row">
+          <input class="otp-digit" type="tel" maxlength="1" oninput="otpMove(this,0)"/>
+          <input class="otp-digit" type="tel" maxlength="1" oninput="otpMove(this,1)"/>
+          <input class="otp-digit" type="tel" maxlength="1" oninput="otpMove(this,2)"/>
+          <input class="otp-digit" type="tel" maxlength="1" oninput="otpMove(this,3)"/>
+          <input class="otp-digit" type="tel" maxlength="1" oninput="otpMove(this,4)"/>
+          <input class="otp-digit" type="tel" maxlength="1" oninput="otpMove(this,5)"/>
+        </div>
+        <div class="otp-meta">Code expires in <b id="otp-timer">10:00</b> &nbsp;·&nbsp;
+          <span class="otp-resend" onclick="handleSignIn(true)">Resend</span>
+        </div>
+        <button class="btn-primary" id="otp-btn" onclick="handleOtpVerify()">Verify & Sign In →</button>
+        <span class="back-link" onclick="resetToCredentials()">← Back to password</span>
+      </div>
+
+      <div class="divider">or</div>
+      <p style="text-align:center;font-size:13px;color:var(--muted);">
+        New here? <a href="#" onclick="switchTab('signup')" style="color:var(--teal);font-weight:600;text-decoration:none;">Create an account</a>
+      </p>
+    </div>
+
+    <!-- ══ SIGN UP ══ -->
+    <div id="form-signup" class="card" style="display:none;">
+      <div id="signup-badge" class="badge doctor">🩺 Doctor</div>
+      <h2 id="signup-title">Create Account</h2>
+      <p class="sub" id="signup-sub">Register as a Doctor</p>
+      <div id="signup-msg" class="msg"></div>
+
+      <!-- Doctor fields -->
+      <div id="su-doctor">
+        <div class="fg-row">
+          <div class="fg"><label>Full Name *</label>
+            <input type="text" id="d-name" placeholder="Dr. Rajesh Sharma" oninput="previewDocId()"/></div>
+          <div class="fg"><label>Department *</label>
+            <select id="d-dept" onchange="previewDocId()">
+              <option value="">Select</option>
+              <option value="CARD">Cardiology</option><option value="ORTH">Orthopedics</option>
+              <option value="NEURO">Neurology</option><option value="PEDI">Pediatrics</option>
+              <option value="DERM">Dermatology</option><option value="GYNE">Gynecology</option>
+              <option value="OPTH">Ophthalmology</option><option value="ENT">ENT</option>
+              <option value="PSYCH">Psychiatry</option><option value="GENSURG">General Surgery</option>
+              <option value="GENMED">General Medicine</option>
+            </select>
+          </div>
+        </div>
+        <div class="fg"><label>Email *</label><input type="email" id="d-email" placeholder="doctor@medicare.com"/></div>
+        <div class="fg"><label>Phone (enables SMS 2FA)</label><input type="tel" id="d-phone" placeholder="+91 98765 43210"/></div>
+        <div class="id-preview" id="d-id-prev">
+          <p>Your Doctor ID will be</p>
+          <div class="gid" id="d-id-text">—</div>
+        </div>
+        <div class="fg"><label>Password *</label>
+          <input type="password" id="d-pass" placeholder="Min. 8 characters" oninput="strengthBar(this.value,'d-sb')"/>
+          <div class="sbar"><div class="sfill" id="d-sb"></div></div>
+        </div>
+        <div class="fg"><label>Confirm Password *</label><input type="password" id="d-pass2" placeholder="Re-enter password"/></div>
+      </div>
+
+      <!-- Receptionist fields -->
+      <div id="su-receptionist" style="display:none;">
+        <div class="fg"><label>Full Name *</label><input type="text" id="r-name" placeholder="Sarah Ahmed"/></div>
+        <div class="fg"><label>Staff Email *</label><input type="email" id="r-email" placeholder="reception@medicare.com"/></div>
+        <div class="fg"><label>Phone (enables SMS 2FA)</label><input type="tel" id="r-phone" placeholder="+91 98765 43210"/></div>
+        <div class="fg"><label>Staff Code * <span style="font-size:10px;font-weight:400;color:var(--muted);">(from admin)</span></label>
+          <input type="text" id="r-code" placeholder="MCRHOSPITAL2024"/></div>
+        <div class="fg"><label>Password *</label>
+          <input type="password" id="r-pass" placeholder="Min. 8 characters" oninput="strengthBar(this.value,'r-sb')"/>
+          <div class="sbar"><div class="sfill" id="r-sb"></div></div>
+        </div>
+        <div class="fg"><label>Confirm Password *</label><input type="password" id="r-pass2" placeholder="Re-enter password"/></div>
+      </div>
+
+      <!-- Patient fields -->
+      <div id="su-patient" style="display:none;">
+        <div class="fg-row">
+          <div class="fg"><label>Full Name *</label><input type="text" id="p-name" placeholder="Rahul Sharma"/></div>
+          <div class="fg"><label>Age *</label><input type="number" id="p-age" placeholder="25" min="1" max="120"/></div>
+        </div>
+        <div class="fg-row">
+          <div class="fg"><label>Gender *</label>
+            <select id="p-gender"><option value="">Select</option><option>Male</option><option>Female</option><option>Other</option></select></div>
+          <div class="fg"><label>Phone * (for OTP)</label><input type="tel" id="p-phone" placeholder="+91 98765 43210"/></div>
+        </div>
+        <div class="fg"><label>Email *</label><input type="email" id="p-email" placeholder="patient@gmail.com"/></div>
+        <div class="fg"><label>Password *</label>
+          <input type="password" id="p-pass" placeholder="Min. 8 characters" oninput="strengthBar(this.value,'p-sb')"/>
+          <div class="sbar"><div class="sfill" id="p-sb"></div></div>
+        </div>
+        <div class="fg"><label>Confirm Password *</label><input type="password" id="p-pass2" placeholder="Re-enter password"/></div>
+      </div>
+
+      <button class="btn-primary" id="signup-btn" onclick="handleSignUp()">Create Account →</button>
+      <div class="divider">or</div>
+      <p style="text-align:center;font-size:13px;color:var(--muted);">
+        Already registered? <a href="#" onclick="switchTab('signin')" style="color:var(--teal);font-weight:600;text-decoration:none;">Sign in</a>
+      </p>
+    </div>
+  </div>
+</div>
+
+<!-- ══ CONSENT MODAL (patients) ══ -->
+<div class="overlay" id="consent-overlay">
+  <div class="consent-card">
+    <span class="consent-tag">⚖️ DPDPA 2023 Compliance</span>
+    <h2>Data Privacy & Consent</h2>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:12px;">Please read and accept our data privacy policy before registering.</p>
+    <div class="consent-scroll">
+      <h4>What data we collect</h4>
+      <p>Name, contact info, age, gender, appointment history, medical reports, and prescriptions.</p>
+      <h4>How we use it</h4>
+      <p>Solely for providing medical services at MediCare Hospital. We do not sell your data to third parties.</p>
+      <h4>Your rights (DPDPA 2023)</h4>
+      <p>You have the right to access, correct, erase your data, and withdraw consent at any time by writing to privacy@medicare.hospital.</p>
+      <h4>Data retention</h4>
+      <p>Medical records retained for 7 years as required by MCI guidelines. Non-medical account data can be deleted on request.</p>
+      <h4>Security</h4>
+      <p>All data is encrypted in transit (TLS 1.3) and at rest (AES-256). Access controlled by role-based permissions with full audit logging.</p>
+      <h4>Contact</h4>
+      <p>DPO: privacy@medicare.hospital &nbsp;|&nbsp; +91 120 456 7891</p>
+    </div>
+    <div class="consent-check">
+      <input type="checkbox" id="consent-cb" onchange="document.getElementById('consent-accept').disabled=!this.checked"/>
+      <label for="consent-cb">I have read and understood the privacy policy and consent to MediCare Hospital collecting and processing my personal and medical data as described above.</label>
+    </div>
+    <div class="consent-btns">
+      <button class="btn-decline" onclick="declineConsent()">Decline</button>
+      <button class="btn-consent" id="consent-accept" disabled onclick="acceptConsent()">Accept & Create Account →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ SUCCESS OVERLAY ══ -->
+<div id="success-overlay">
+  <div class="sc-card">
+    <div class="sc-circle">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="20 6 9 17 4 12"/>
+      </svg>
+    </div>
+    <h2 id="sc-title">Account Created!</h2>
+    <p id="sc-msg">Your account is ready.</p>
+    <div class="sc-id-box" id="sc-id-box">
+      <p id="sc-id-label">Your ID</p>
+      <div class="bid" id="sc-id-val">—</div>
+      <small>⚠️ Save this — you'll need it to sign in</small>
+    </div>
+    <button class="sc-btn" onclick="afterSignup()">Go to Sign In →</button>
+  </div>
+</div>
+
+<script>
+// ── CONFIG ────────────────────────────────────────────────────────────────
+// In production: point this to your deployed backend from api.js
+const API = 'http://localhost:4000/api';
+
+// Supabase direct fallback (dev only — remove in production)
+const SUPABASE_URL      = 'https://pabiuaumumfkzkpajjnx.supabase.co';
+  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBhYml1YXVtdW1ma3prcGFqam54Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg3MzA3NjQsImV4cCI6MjA5NDMwNjc2NH0.v5nnj-yMqBr4nfb1tsVrSr1bAmg3Nc52TThdNd8CllE';
+
+let currentRole       = 'doctor';
+let currentTab        = 'signin';
+let preAuthToken      = null;
+let pendingPayload    = null;
+let otpTimerInterval  = null;
+
+// ── ROLE SETUP ─────────────────────────────────────────────────────────────
+const roleCfg = {
+  doctor:       { badge:'🩺 Doctor',       cls:'doctor',       hint:'Doctor ID (e.g. MCR-CARD-4821-RS) or email',   ph:'MCR-CARD-4821-RS or email' },
+  receptionist: { badge:'🗂️ Receptionist', cls:'receptionist', hint:'Staff ID (e.g. REC-0042) or email',            ph:'REC-0042 or email'          },
+  patient:      { badge:'👤 Patient',       cls:'patient',      hint:'Patient ID (e.g. MCP-20240001) or email',      ph:'MCP-20240001 or email'      }
+};
+
+function setRole(role) {
+  currentRole = role;
+  document.querySelectorAll('.rpill').forEach(p => p.classList.remove('active'));
+  document.getElementById('pill-'+role).classList.add('active');
+  const c = roleCfg[role];
+  ['signin-badge','signup-badge'].forEach(id => {
+    const el = document.getElementById(id);
+    el.textContent = c.badge; el.className = 'badge '+c.cls;
+  });
+  document.getElementById('signin-hint').textContent = c.hint;
+  document.getElementById('signin-id').placeholder   = c.ph;
+  const siTitles = { doctor:'Welcome Back, Doctor', receptionist:'Receptionist Sign In', patient:'Welcome Back' };
+  const siSubs   = { doctor:'Sign in to your doctor dashboard', receptionist:'Sign in to the reception panel', patient:'Sign in to track your appointments' };
+  const suSubs   = { doctor:'Register as a Doctor', receptionist:'Register as Receptionist Staff', patient:'Create your patient account' };
+  document.getElementById('signin-title').textContent = siTitles[role];
+  document.getElementById('signin-sub').textContent   = siSubs[role];
+  document.getElementById('signup-sub').textContent   = suSubs[role];
+  ['su-doctor','su-receptionist','su-patient'].forEach(id => document.getElementById(id).style.display='none');
+  document.getElementById('su-'+role).style.display = 'block';
+  ['signin-msg','signup-msg'].forEach(id => document.getElementById(id).className='msg');
+  resetToCredentials();
+}
+
+function switchTab(tab) {
+  currentTab = tab;
+  document.getElementById('form-signin').style.display = tab==='signin'?'block':'none';
+  document.getElementById('form-signup').style.display = tab==='signup'?'block':'none';
+  document.getElementById('tab-signin').classList.toggle('active', tab==='signin');
+  document.getElementById('tab-signup').classList.toggle('active', tab==='signup');
+}
+
+// ── HELPERS ────────────────────────────────────────────────────────────────
+function showMsg(id, type, text) {
+  const el = document.getElementById(id);
+  el.className = 'msg '+type+' show'; el.textContent = text;
+}
+
+function strengthBar(val, id) {
+  let s = 0;
+  if (val.length>=8) s++;
+  if (/[A-Z]/.test(val)) s++;
+  if (/[0-9]/.test(val)) s++;
+  if (/[^A-Za-z0-9]/.test(val)) s++;
+  const bg=['','#ef4444','#f97316','#eab308','#22c55e'];
+  const w =['0%','25%','50%','75%','100%'];
+  const el = document.getElementById(id);
+  el.style.width=w[s]; el.style.background=bg[s];
+}
+
+function previewDocId() {
+  const name=document.getElementById('d-name').value;
+  const dept=document.getElementById('d-dept').value;
+  const prev=document.getElementById('d-id-prev');
+  if (name&&dept) {
+    const parts=name.replace(/^dr\.?\s*/i,'').trim().split(/\s+/);
+    const ini=parts.map(p=>p[0]?.toUpperCase()||'').join('').slice(0,3);
+    document.getElementById('d-id-text').textContent=`MCR-${dept}-XXXX-${ini}`;
+    prev.style.display='block';
+  } else prev.style.display='none';
+}
+
+// OTP digits auto-advance
+function otpMove(el, idx) {
+  if (el.value && idx<5) document.querySelectorAll('.otp-digit')[idx+1].focus();
+}
+function getOtpCode() {
+  return Array.from(document.querySelectorAll('.otp-digit')).map(i=>i.value).join('');
+}
+function startOtpTimer(sec=600) {
+  clearInterval(otpTimerInterval);
+  let r=sec;
+  otpTimerInterval = setInterval(()=>{
+    r--;
+    const m=Math.floor(r/60), s=r%60;
+    const el=document.getElementById('otp-timer');
+    if (el) el.textContent=`${m}:${String(s).padStart(2,'0')}`;
+    if (r<=0) { clearInterval(otpTimerInterval); if (el) el.textContent='Expired'; }
+  },1000);
+}
+function resetToCredentials() {
+  document.getElementById('creds-step').style.display='block';
+  document.getElementById('otp-step').style.display='none';
+  clearInterval(otpTimerInterval);
+  preAuthToken=null;
+}
+
+// SHA-256 for Supabase fallback (dev only)
+async function sha256(str) {
+  const buf=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(str));
+  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+
+// ── SIGN IN ────────────────────────────────────────────────────────────────
+async function handleSignIn(resend=false) {
+  const id=document.getElementById('signin-id').value.trim();
+  const pw=document.getElementById('signin-pw').value;
+  if (!id||!pw) { showMsg('signin-msg','error','⚠️ Please fill in all fields.'); return; }
+
+  const btn=document.getElementById('signin-btn');
+  btn.disabled=true; btn.textContent='Signing in…';
+
+  try {
+    const resp=await fetch(`${API}/auth/login`,{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({identifier:id,password:pw,role:currentRole})
+    });
+
+    if (resp.ok) {
+      const data=await resp.json();
+      if (data.requiresOtp) {
+        preAuthToken=data.preToken;
+        document.getElementById('creds-step').style.display='none';
+        document.getElementById('otp-step').style.display='block';
+        document.querySelectorAll('.otp-digit').forEach(i=>i.value='');
+        document.querySelectorAll('.otp-digit')[0].focus();
+        startOtpTimer();
+        showMsg('signin-msg','info','📱 OTP sent to your registered phone.');
+      } else {
+        saveSession(data);
+        showMsg('signin-msg','success','✅ Welcome, '+data.user.name+'! Redirecting…');
+        setTimeout(()=>redirectByRole(data.user.role),1200);
+      }
+      return;
+    }
+    // Backend responded with error — try fallback
+    throw new Error((await resp.json().catch(()=>({}))).error||'Login failed');
+
+  } catch(e) {
+    // Dev fallback: direct Supabase with SHA-256
+    try {
+      await supabaseLogin(id,pw);
+    } catch(fe) {
+      showMsg('signin-msg','error','❌ '+(fe.message||'Invalid credentials'));
+    }
+  } finally {
+    btn.disabled=false; btn.textContent='Sign In →';
+  }
+}
+
+async function supabaseLogin(identifier, password) {
+  const sc=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
+  const table=currentRole==='doctor'?'doctors':currentRole==='receptionist'?'receptionists':'patients';
+  const idf=currentRole==='doctor'?'doctor_id':currentRole==='receptionist'?'staff_id':'patient_id';
+  const field=identifier.includes('@')?'email':idf;
+  const hash=await sha256(password);
+  const {data,error}=await sc.from(table).select('*').eq(field,identifier).eq('password_hash',hash).maybeSingle();
+  if (error||!data) throw new Error('Invalid credentials.');
+  const user={id:data[idf],name:data.name,role:currentRole,dept:data.department,email:data.email};
+  saveSession({user});
+  showMsg('signin-msg','success','✅ Welcome, '+data.name+'! Redirecting…');
+  setTimeout(()=>redirectByRole(currentRole),1200);
+}
+
+// ── OTP VERIFY ─────────────────────────────────────────────────────────────
+async function handleOtpVerify() {
+  const code=getOtpCode();
+  if (code.length!==6) { showMsg('signin-msg','error','⚠️ Enter all 6 digits.'); return; }
+  const btn=document.getElementById('otp-btn');
+  btn.disabled=true; btn.textContent='Verifying…';
+  try {
+    const resp=await fetch(`${API}/auth/verify-otp`,{
+      method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+preAuthToken},
+      body:JSON.stringify({code})
+    });
+    const data=await resp.json();
+    if (!resp.ok) throw new Error(data.error||'Verification failed');
+    clearInterval(otpTimerInterval);
+    saveSession(data);
+    showMsg('signin-msg','success','✅ Verified! Redirecting…');
+    setTimeout(()=>redirectByRole(data.user.role),1200);
+  } catch(e) {
+    showMsg('signin-msg','error','❌ '+e.message);
+  } finally {
+    btn.disabled=false; btn.textContent='Verify & Sign In →';
+  }
+}
+
+function saveSession(data) {
+  if (data.token) sessionStorage.setItem('jwt',data.token);
+  const u=data.user;
+  if (!u) return;
+  if (u.role==='doctor')       sessionStorage.setItem('doctor',JSON.stringify({id:u.id,name:u.name,dept:u.dept}));
+  else if (u.role==='receptionist') sessionStorage.setItem('receptionist',JSON.stringify({id:u.id,name:u.name}));
+  else if (u.role==='patient') sessionStorage.setItem('patient',JSON.stringify({id:u.id,name:u.name,email:u.email}));
+}
+
+function redirectByRole(role) {
+  const map={doctor:'Page8_doctor_dashboard.html',receptionist:'Reception_admin_panel.html',patient:'page10_patient_portal.html'};
+  window.location.href=map[role]||'page1_home.html';
+}
+
+// ── SIGN UP ────────────────────────────────────────────────────────────────
+async function handleSignUp() {
+  const btn=document.getElementById('signup-btn');
+  btn.disabled=true; btn.textContent='Creating account…';
+  try {
+    const payload=buildPayload();
+    if (!payload) return;
+    if (currentRole==='patient') {
+      pendingPayload=payload;
+      document.getElementById('consent-cb').checked=false;
+      document.getElementById('consent-accept').disabled=true;
+      document.getElementById('consent-overlay').classList.add('show');
+    } else {
+      await doSignup(payload);
+    }
+  } catch(e) {
+    showMsg('signup-msg','error','❌ '+e.message);
+  } finally {
+    btn.disabled=false; btn.textContent='Create Account →';
+  }
+}
+
+function buildPayload() {
+  function err(m){ showMsg('signup-msg','error',m); return null; }
+  if (currentRole==='doctor') {
+    const name=document.getElementById('d-name').value.trim(),
+          dept=document.getElementById('d-dept').value,
+          email=document.getElementById('d-email').value.trim(),
+          phone=document.getElementById('d-phone').value.trim(),
+          p=document.getElementById('d-pass').value,
+          p2=document.getElementById('d-pass2').value;
+    if (!name||!dept||!email||!p||!p2) return err('⚠️ Fill all required fields.');
+    if (p!==p2) return err('⚠️ Passwords do not match.');
+    if (p.length<8) return err('⚠️ Password must be at least 8 characters.');
+    return {role:'doctor',name,email,department:dept,phone,password:p};
+  }
+  if (currentRole==='receptionist') {
+    const name=document.getElementById('r-name').value.trim(),
+          email=document.getElementById('r-email').value.trim(),
+          phone=document.getElementById('r-phone').value.trim(),
+          code=document.getElementById('r-code').value.trim(),
+          p=document.getElementById('r-pass').value,
+          p2=document.getElementById('r-pass2').value;
+    if (!name||!email||!code||!p||!p2) return err('⚠️ Fill all required fields.');
+    if (p!==p2) return err('⚠️ Passwords do not match.');
+    if (p.length<8) return err('⚠️ Password must be at least 8 characters.');
+    return {role:'receptionist',name,email,phone,staffCode:code,password:p};
+  }
+  if (currentRole==='patient') {
+    const name=document.getElementById('p-name').value.trim(),
+          age=document.getElementById('p-age').value,
+          gender=document.getElementById('p-gender').value,
+          phone=document.getElementById('p-phone').value.trim(),
+          email=document.getElementById('p-email').value.trim(),
+          p=document.getElementById('p-pass').value,
+          p2=document.getElementById('p-pass2').value;
+    if (!name||!age||!gender||!phone||!email||!p||!p2) return err('⚠️ Fill all required fields.');
+    if (p!==p2) return err('⚠️ Passwords do not match.');
+    if (p.length<8) return err('⚠️ Password must be at least 8 characters.');
+    return {role:'patient',name,email,phone,age:parseInt(age),gender,password:p};
+  }
+  return null;
+}
+
+async function doSignup(payload) {
+  try {
+    const resp=await fetch(`${API}/auth/register`,{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify(payload)
+    });
+    const data=await resp.json();
+    if (!resp.ok) throw new Error(data.errors?.[0]?.msg||data.error||'Registration failed');
+    showSuccess(data.id);
+  } catch(e) {
+    // Dev fallback: direct Supabase
+    await supabaseSignup(payload);
+  }
+}
+
+async function supabaseSignup(p) {
+  const sc=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
+  const hash=await sha256(p.password);
+  if (p.role==='doctor') {
+    const parts=p.name.replace(/^dr\.?\s*/i,'').trim().split(/\s+/);
+    const ini=parts.map(x=>x[0]?.toUpperCase()||'').join('').slice(0,3);
+    const id=`MCR-${p.department}-${Math.floor(1000+Math.random()*9000)}-${ini}`;
+    const {error}=await sc.from('doctors').insert([{doctor_id:id,name:p.name,email:p.email,department:p.department,phone:p.phone||null,password_hash:hash}]);
+    if (error) throw error; showSuccess(id);
+  } else if (p.role==='receptionist') {
+    if (p.staffCode!=='MCRHOSPITAL2024') throw new Error('Invalid staff code.');
+    const id='REC-'+String(Math.floor(1000+Math.random()*9000));
+    const {error}=await sc.from('receptionists').insert([{staff_id:id,name:p.name,email:p.email,phone:p.phone||null,password_hash:hash}]);
+    if (error) throw error; showSuccess(id);
+  } else {
+    const id='MCP-'+new Date().getFullYear()+Math.floor(1000+Math.random()*9000);
+    const {error}=await sc.from('patients').insert([{patient_id:id,name:p.name,email:p.email,phone:p.phone,age:p.age,gender:p.gender,password_hash:hash}]);
+    if (error) throw error; showSuccess(id);
+  }
+}
+
+function showSuccess(id) {
+  const labels={doctor:'Your Doctor ID',receptionist:'Your Staff ID',patient:'Your Patient ID'};
+  document.getElementById('sc-title').textContent   = 'Account Created!';
+  document.getElementById('sc-msg').textContent     = 'Your account is ready to use.';
+  document.getElementById('sc-id-label').textContent= labels[currentRole];
+  document.getElementById('sc-id-val').textContent  = id;
+  document.getElementById('success-overlay').classList.add('show');
+}
+function afterSignup() {
+  document.getElementById('success-overlay').classList.remove('show');
+  switchTab('signin');
+}
+
+// ── CONSENT ────────────────────────────────────────────────────────────────
+function declineConsent() {
+  document.getElementById('consent-overlay').classList.remove('show');
+  pendingPayload=null;
+  showMsg('signup-msg','error','⚠️ You must accept the privacy policy to register.');
+}
+async function acceptConsent() {
+  document.getElementById('consent-overlay').classList.remove('show');
+  if (pendingPayload) await doSignup(pendingPayload);
+}
+
+// ── INIT ──────────────────────────────────────────────────────────────────
+window.addEventListener('load', () => setRole('doctor'));
+</script>
+</body>
+</html>

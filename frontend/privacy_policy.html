@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Privacy Policy — MediCare Hospital</title>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
+    :root {
+      --navy:#0d1f33; --navy2:#1a2e44; --teal:#00c9a7; --teal-d:#00a88a;
+      --white:#fff; --off:#f4f8f7; --muted:#718096; --text:#1a202c; --border:#e2e8f0;
+    }
+    body { font-family:'Instrument Sans',sans-serif; background:var(--off); color:var(--text); }
+
+    /* NAV */
+    nav { background:var(--navy); padding:16px 52px; display:flex; align-items:center; justify-content:space-between; position:sticky; top:0; z-index:100; }
+    .logo { display:flex; align-items:center; gap:10px; text-decoration:none; }
+    .logo-ic { width:36px; height:36px; background:linear-gradient(135deg,var(--teal-d),var(--teal)); border-radius:9px; display:flex; align-items:center; justify-content:center; font-size:17px; }
+    .logo-nm { font-family:'Syne',sans-serif; font-size:16px; font-weight:800; color:#fff; }
+    .nav-links { display:flex; gap:24px; list-style:none; }
+    .nav-links a { color:rgba(255,255,255,.6); font-size:13px; text-decoration:none; transition:color .2s; }
+    .nav-links a:hover { color:#fff; }
+
+    /* HERO */
+    .hero { background:linear-gradient(135deg,var(--navy),#0a2e22); padding:52px 52px 44px; }
+    .hero-inner { max-width:820px; margin:0 auto; }
+    .hero-tag { display:inline-flex; align-items:center; gap:6px; background:rgba(0,201,167,.15); border:1px solid rgba(0,201,167,.3); color:var(--teal); font-size:12px; font-weight:700; padding:5px 13px; border-radius:20px; margin-bottom:16px; text-transform:uppercase; letter-spacing:.06em; }
+    .hero h1 { font-family:'Syne',sans-serif; font-size:clamp(26px,4vw,38px); font-weight:800; color:#fff; line-height:1.2; margin-bottom:12px; }
+    .hero p  { font-size:15px; color:rgba(255,255,255,.6); line-height:1.75; max-width:600px; }
+    .hero-meta { display:flex; gap:24px; margin-top:20px; flex-wrap:wrap; }
+    .meta-item { display:flex; align-items:center; gap:7px; font-size:13px; color:rgba(255,255,255,.5); }
+    .meta-item strong { color:rgba(255,255,255,.8); }
+
+    /* CONTENT */
+    .content-wrap { max-width:820px; margin:0 auto; padding:48px 24px 80px; }
+
+    /* TOC */
+    .toc { background:var(--white); border-radius:14px; padding:22px 24px; box-shadow:0 2px 12px rgba(0,0,0,.06); margin-bottom:36px; border-left:4px solid var(--teal); }
+    .toc h3 { font-size:14px; font-weight:700; color:var(--navy2); margin-bottom:12px; text-transform:uppercase; letter-spacing:.05em; }
+    .toc ol  { padding-left:18px; display:flex; flex-direction:column; gap:7px; }
+    .toc li  { font-size:13px; }
+    .toc a   { color:var(--teal-d); text-decoration:none; font-weight:500; }
+    .toc a:hover { text-decoration:underline; }
+
+    /* SECTIONS */
+    .section { margin-bottom:40px; }
+    .section h2 { font-family:'Syne',sans-serif; font-size:20px; font-weight:800; color:var(--navy2); margin-bottom:14px; padding-bottom:10px; border-bottom:2px solid var(--border); display:flex; align-items:center; gap:10px; }
+    .section h3 { font-size:15px; font-weight:700; color:var(--navy2); margin:18px 0 8px; }
+    .section p  { font-size:14px; color:#374151; line-height:1.8; margin-bottom:10px; }
+    .section ul, .section ol { padding-left:20px; margin-bottom:12px; }
+    .section li { font-size:14px; color:#374151; line-height:1.8; margin-bottom:4px; }
+    .section a  { color:var(--teal-d); font-weight:600; }
+
+    /* HIGHLIGHT BOX */
+    .highlight { background:#e6faf7; border:1.5px solid var(--teal); border-radius:12px; padding:16px 18px; margin:16px 0; }
+    .highlight p { color:#0d5c47; font-size:14px; line-height:1.7; margin:0; }
+    .highlight p + p { margin-top:8px; }
+    .warning { background:#fff8e1; border:1.5px solid #f59e0b; border-radius:12px; padding:16px 18px; margin:16px 0; }
+    .warning p { color:#78350f; font-size:14px; line-height:1.7; margin:0; }
+
+    /* RIGHTS TABLE */
+    .rights-table { width:100%; border-collapse:collapse; margin:14px 0; background:var(--white); border-radius:12px; overflow:hidden; box-shadow:0 2px 10px rgba(0,0,0,.05); }
+    .rights-table th { background:var(--navy2); color:#fff; padding:11px 16px; text-align:left; font-size:13px; font-weight:700; }
+    .rights-table td { padding:12px 16px; border-bottom:1px solid var(--border); font-size:13px; color:var(--text); vertical-align:top; }
+    .rights-table tr:last-child td { border:none; }
+    .rights-table tr:nth-child(even) td { background:#f8fafc; }
+    .right-name { font-weight:700; color:var(--navy2); }
+
+    /* CONTACT CARD */
+    .contact-card { background:var(--navy2); border-radius:14px; padding:24px; color:#fff; margin-top:32px; }
+    .contact-card h3 { font-family:'Syne',sans-serif; font-size:17px; margin-bottom:14px; color:#fff; }
+    .contact-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+    .contact-item { background:rgba(255,255,255,.07); border-radius:10px; padding:13px; }
+    .contact-item .ci-label { font-size:11px; color:var(--teal); font-weight:700; text-transform:uppercase; letter-spacing:.06em; margin-bottom:5px; }
+    .contact-item .ci-value { font-size:13px; color:rgba(255,255,255,.85); line-height:1.5; }
+
+    /* FOOTER */
+    footer { background:var(--navy); padding:28px 52px; text-align:center; }
+    footer p { color:rgba(255,255,255,.45); font-size:13px; }
+    footer a { color:var(--teal); text-decoration:none; }
+
+    @media(max-width:640px) { nav{padding:14px 16px;} .nav-links{display:none;} .hero{padding:36px 20px 32px;} .content-wrap{padding:32px 16px 60px;} footer{padding:24px 16px;} .contact-grid{grid-template-columns:1fr;} }
+  </style>
+</head>
+<body>
+
+<nav>
+  <a href="page1_home.html" class="logo">
+    <div class="logo-ic">🏥</div>
+    <span class="logo-nm">MediCare</span>
+  </a>
+  <ul class="nav-links">
+    <li><a href="page1_home.html">Home</a></li>
+    <li><a href="page6_appointment.html">Book Appointment</a></li>
+    <li><a href="login.html">Sign In</a></li>
+  </ul>
+</nav>
+
+<div class="hero">
+  <div class="hero-inner">
+    <div class="hero-tag">⚖️ Legal</div>
+    <h1>Privacy Policy</h1>
+    <p>We are committed to protecting your personal and medical data in compliance with the Digital Personal Data Protection Act (DPDPA) 2023 and applicable Indian health data regulations.</p>
+    <div class="hero-meta">
+      <div class="meta-item">📅 <strong>Effective Date:</strong> 1 January 2025</div>
+      <div class="meta-item">🔄 <strong>Last Updated:</strong> 1 January 2025</div>
+      <div class="meta-item">📋 <strong>Version:</strong> privacy_v1_2025</div>
+    </div>
+  </div>
+</div>
+
+<div class="content-wrap">
+
+  <!-- TABLE OF CONTENTS -->
+  <div class="toc">
+    <h3>📋 Table of Contents</h3>
+    <ol>
+      <li><a href="#who-we-are">Who We Are</a></li>
+      <li><a href="#data-collected">Data We Collect</a></li>
+      <li><a href="#how-we-use">How We Use Your Data</a></li>
+      <li><a href="#sharing">Data Sharing</a></li>
+      <li><a href="#retention">Data Retention</a></li>
+      <li><a href="#security">Security Measures</a></li>
+      <li><a href="#your-rights">Your Rights (DPDPA 2023)</a></li>
+      <li><a href="#consent">Consent & Withdrawal</a></li>
+      <li><a href="#cookies">Cookies & Tracking</a></li>
+      <li><a href="#children">Children's Data</a></li>
+      <li><a href="#changes">Policy Changes</a></li>
+      <li><a href="#contact">Contact Us</a></li>
+    </ol>
+  </div>
+
+  <!-- 1 -->
+  <div class="section" id="who-we-are">
+    <h2><span>1.</span> Who We Are</h2>
+    <p>MediCare General Hospital ("we", "us", "our") is a healthcare provider operating at Sector 5, Vaishali, Ghaziabad – 201010, Uttar Pradesh, India. We operate the MediCare hospital management system accessible at this website and related mobile applications.</p>
+    <p>We are a <strong>Data Fiduciary</strong> as defined under the Digital Personal Data Protection Act 2023 (DPDPA 2023). Our registered Data Protection Officer (DPO) can be reached at <a href="mailto:privacy@medicare.hospital">privacy@medicare.hospital</a>.</p>
+  </div>
+
+  <!-- 2 -->
+  <div class="section" id="data-collected">
+    <h2><span>2.</span> Data We Collect</h2>
+    <h3>2.1 Personal Data (provided by you)</h3>
+    <ul>
+      <li><strong>Identity:</strong> Full name, age, gender, date of birth</li>
+      <li><strong>Contact:</strong> Phone number, email address, residential address</li>
+      <li><strong>Authentication:</strong> Hashed password (bcrypt, never plain text), one-time passwords (OTPs)</li>
+      <li><strong>Government ID:</strong> ABHA Health ID (optional, for ABDM integration)</li>
+    </ul>
+    <h3>2.2 Medical / Sensitive Data</h3>
+    <ul>
+      <li>Appointment history, doctor names, consultation reasons</li>
+      <li>Prescriptions including diagnoses, medicines, and dosage instructions</li>
+      <li>Medical reports: X-Rays, MRIs, blood tests, ECG, ultrasound images, PDFs</li>
+      <li>Symptoms and clinical notes recorded during consultations</li>
+    </ul>
+    <h3>2.3 Technical Data (collected automatically)</h3>
+    <ul>
+      <li>IP address (logged with every action for security and audit purposes)</li>
+      <li>Browser user-agent and device type</li>
+      <li>Timestamps of all actions (login, booking, payment)</li>
+      <li>Payment transaction IDs (we do not store card numbers — handled by Razorpay PCI-DSS Level 1)</li>
+    </ul>
+    <div class="highlight">
+      <p>We never collect or store: credit/debit card numbers, CVV codes, bank account numbers, Aadhaar numbers, or biometric data.</p>
+    </div>
+  </div>
+
+  <!-- 3 -->
+  <div class="section" id="how-we-use">
+    <h2><span>3.</span> How We Use Your Data</h2>
+    <p>We process your personal data <strong>only for the following legitimate purposes</strong>:</p>
+    <ul>
+      <li>Providing medical services: booking appointments, issuing prescriptions, uploading reports</li>
+      <li>Sending appointment confirmations, reminders, and status updates via SMS and email</li>
+      <li>Authenticating your identity and securing your account with 2FA</li>
+      <li>Processing consultation fee payments via Razorpay</li>
+      <li>Maintaining a tamper-evident audit trail for medical compliance</li>
+      <li>Complying with MCI/NMC data retention requirements (7-year minimum)</li>
+      <li>Improving our services through aggregate, anonymised analytics</li>
+    </ul>
+    <div class="warning">
+      <p>⚠️ We do <strong>not</strong> use your medical data for advertising, profiling, or selling to third parties. We do not use automated decision-making that produces legal or similarly significant effects on you.</p>
+    </div>
+  </div>
+
+  <!-- 4 -->
+  <div class="section" id="sharing">
+    <h2><span>4.</span> Data Sharing</h2>
+    <p>We share your data only in the following limited circumstances:</p>
+    <h3>4.1 Within MediCare</h3>
+    <p>Your appointment details are visible to the assigned doctor and reception staff. Medical reports are accessible to the treating doctor and authorised reception staff.</p>
+    <h3>4.2 Third-Party Service Providers (Data Processors)</h3>
+    <table class="rights-table">
+      <thead><tr><th>Provider</th><th>Purpose</th><th>Data Shared</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Supabase</strong></td><td>Cloud database & storage</td><td>All patient and appointment data (encrypted at rest)</td></tr>
+        <tr><td><strong>Twilio / MSG91</strong></td><td>SMS notifications & OTP</td><td>Phone number, appointment summary</td></tr>
+        <tr><td><strong>Razorpay</strong></td><td>Payment processing</td><td>Name, email, phone (no card data stored by us)</td></tr>
+        <tr><td><strong>SMTP Provider</strong></td><td>Email confirmations</td><td>Name, email, appointment details</td></tr>
+      </tbody>
+    </table>
+    <h3>4.3 Legal Requirements</h3>
+    <p>We may disclose data if required by law, court order, or a competent government authority, including health regulatory bodies (MCI/NMC) and law enforcement agencies.</p>
+  </div>
+
+  <!-- 5 -->
+  <div class="section" id="retention">
+    <h2><span>5.</span> Data Retention</h2>
+    <ul>
+      <li><strong>Medical records</strong> (appointments, prescriptions, reports): minimum <strong>7 years</strong> as required by MCI Guidelines 2002</li>
+      <li><strong>Audit logs</strong>: minimum <strong>7 years</strong> — append-only, cannot be deleted</li>
+      <li><strong>Account data</strong> (name, email, phone): retained while account is active + 2 years after last activity</li>
+      <li><strong>Payment records</strong>: 8 years as required by the Income Tax Act</li>
+      <li><strong>Consent records</strong>: retained for the lifetime of the account</li>
+    </ul>
+    <p>After the retention period, data is securely deleted or anonymised. You may request earlier deletion of non-medical account data — see Your Rights below.</p>
+  </div>
+
+  <!-- 6 -->
+  <div class="section" id="security">
+    <h2><span>6.</span> Security Measures</h2>
+    <ul>
+      <li><strong>Encryption in transit:</strong> TLS 1.3 for all data between your browser and our servers</li>
+      <li><strong>Encryption at rest:</strong> AES-256 via Supabase (AWS)</li>
+      <li><strong>Password security:</strong> bcrypt with cost factor 12 — passwords are never stored in plain text</li>
+      <li><strong>Two-factor authentication:</strong> SMS OTP and TOTP (Google Authenticator) available for all roles</li>
+      <li><strong>Role-based access:</strong> Patients see only their own data; doctors see only their patients; Row Level Security enforced at database level</li>
+      <li><strong>Audit trail:</strong> Every login, data access, and change is recorded in a tamper-evident log</li>
+      <li><strong>Rate limiting:</strong> Authentication attempts limited to prevent brute-force attacks</li>
+    </ul>
+  </div>
+
+  <!-- 7 -->
+  <div class="section" id="your-rights">
+    <h2><span>7.</span> Your Rights Under DPDPA 2023</h2>
+    <table class="rights-table">
+      <thead><tr><th>Right</th><th>What it means</th><th>How to exercise</th></tr></thead>
+      <tbody>
+        <tr><td><span class="right-name">Right to Access</span></td><td>Receive a copy of your personal data we hold</td><td>Email privacy@medicare.hospital</td></tr>
+        <tr><td><span class="right-name">Right to Correction</span></td><td>Correct inaccurate or incomplete data</td><td>Update in patient portal or email us</td></tr>
+        <tr><td><span class="right-name">Right to Erasure</span></td><td>Delete non-medical account data (medical records subject to 7-year MCI retention)</td><td>Email privacy@medicare.hospital with subject "Data Deletion Request"</td></tr>
+        <tr><td><span class="right-name">Right to Withdraw Consent</span></td><td>Withdraw consent for data processing (may affect ability to use our services)</td><td>Email privacy@medicare.hospital</td></tr>
+        <tr><td><span class="right-name">Right to Grievance</span></td><td>Raise a complaint about data processing</td><td>Contact our DPO within 30 days of the incident</td></tr>
+        <tr><td><span class="right-name">Right to Nominate</span></td><td>Nominate another person to exercise rights on your behalf in case of incapacity</td><td>Provide written nomination to our DPO</td></tr>
+      </tbody>
+    </table>
+    <p>We will respond to all rights requests within <strong>30 days</strong>. If you are not satisfied with our response, you may approach the <strong>Data Protection Board of India</strong> once operational.</p>
+  </div>
+
+  <!-- 8 -->
+  <div class="section" id="consent">
+    <h2><span>8.</span> Consent & Withdrawal</h2>
+    <p>When you create a patient account, we obtain your <strong>free, informed, specific, and unambiguous consent</strong> before collecting your data. The exact version of the policy you consented to, along with the timestamp and your IP address, is recorded in our systems.</p>
+    <p>You may withdraw consent at any time by emailing <a href="mailto:privacy@medicare.hospital">privacy@medicare.hospital</a>. Withdrawal does not affect the legality of processing done before withdrawal. However, withdrawal may limit our ability to provide medical services.</p>
+  </div>
+
+  <!-- 9 -->
+  <div class="section" id="cookies">
+    <h2><span>9.</span> Cookies & Session Storage</h2>
+    <p>Our web application uses <strong>browser sessionStorage</strong> (not cookies) to maintain your login session. SessionStorage data is cleared automatically when you close your browser tab.</p>
+    <p>We do not use advertising cookies, tracking pixels, or third-party analytics scripts.</p>
+  </div>
+
+  <!-- 10 -->
+  <div class="section" id="children">
+    <h2><span>10.</span> Children's Data</h2>
+    <p>We provide paediatric services. When a patient is under 18 years of age, we require a parent or legal guardian to provide consent on their behalf during registration. We do not knowingly collect data from minors without verifiable parental consent.</p>
+  </div>
+
+  <!-- 11 -->
+  <div class="section" id="changes">
+    <h2><span>11.</span> Policy Changes</h2>
+    <p>We may update this Privacy Policy from time to time. We will notify you of significant changes via email and/or an in-app notice at least <strong>30 days before</strong> the changes take effect. Continued use of our services after the effective date constitutes acceptance of the updated policy.</p>
+    <p>The version identifier (e.g. <code>privacy_v1_2025</code>) in the consent record allows us to track which version of this policy you accepted.</p>
+  </div>
+
+  <!-- 12 -->
+  <div class="section" id="contact">
+    <h2><span>12.</span> Contact Us</h2>
+    <div class="contact-card">
+      <h3>Data Protection & Privacy Contacts</h3>
+      <div class="contact-grid">
+        <div class="contact-item">
+          <div class="ci-label">Data Protection Officer</div>
+          <div class="ci-value">MediCare Hospital DPO<br/><a href="mailto:privacy@medicare.hospital" style="color:var(--teal);">privacy@medicare.hospital</a><br/>Response within 30 days</div>
+        </div>
+        <div class="contact-item">
+          <div class="ci-label">General Enquiries</div>
+          <div class="ci-value">MediCare General Hospital<br/>Sector 5, Vaishali, Ghaziabad – 201010<br/>📞 +91 120 456 7890</div>
+        </div>
+        <div class="contact-item">
+          <div class="ci-label">Data Deletion Requests</div>
+          <div class="ci-value">Subject: "Data Deletion Request"<br/><a href="mailto:privacy@medicare.hospital" style="color:var(--teal);">privacy@medicare.hospital</a><br/>Include your Patient ID</div>
+        </div>
+        <div class="contact-item">
+          <div class="ci-label">Grievance Escalation</div>
+          <div class="ci-value">Data Protection Board of India<br/>(once operational under DPDPA 2023)<br/>Ministry of Electronics & IT</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<footer>
+  <p>© 2025 MediCare General Hospital · <a href="page1_home.html">Home</a> · <a href="page6_appointment.html">Book Appointment</a> · <a href="login.html">Sign In</a></p>
+  <p style="margin-top:8px;">This policy complies with the Digital Personal Data Protection Act (DPDPA) 2023, MCI Guidelines, and IT Act 2000.</p>
+</footer>
+
+</body>
+</html>

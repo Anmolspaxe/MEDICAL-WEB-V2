@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>My Availability — MediCare</title>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --navy: #0d1f33; --navy2: #1a2e44;
+      --teal: #00c9a7; --teal-d: #00a88a;
+      --white: #ffffff; --off: #f4f8f7;
+      --muted: #718096; --text: #1a202c; --border: #e2e8f0;
+      --sidebar-w: 250px;
+    }
+    body { font-family:'Instrument Sans',sans-serif; background:var(--off); color:var(--text); min-height:100vh; display:flex; }
+
+    /* SIDEBAR */
+    .sidebar { width:var(--sidebar-w); background:var(--navy); min-height:100vh;
+      position:fixed; top:0; left:0; bottom:0; z-index:100; display:flex; flex-direction:column; }
+    .sb-logo { padding:22px 18px 18px; border-bottom:1px solid rgba(255,255,255,.07);
+      display:flex; align-items:center; gap:12px; }
+    .sb-logo-icon { width:38px; height:38px; background:linear-gradient(135deg,var(--teal-d),var(--teal));
+      border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:18px; }
+    .sb-logo-name { font-family:'Syne',sans-serif; font-size:15px; font-weight:800; color:#fff; }
+    .sb-logo-sub  { color:rgba(255,255,255,.38); font-size:10px; text-transform:uppercase; letter-spacing:.07em; }
+    .sb-profile { margin:14px 12px; background:rgba(255,255,255,.06); border-radius:11px;
+      padding:13px; display:flex; align-items:center; gap:11px; }
+    .sb-avatar { width:40px; height:40px; border-radius:50%;
+      background:linear-gradient(135deg,var(--teal-d),#0e7490);
+      display:flex; align-items:center; justify-content:center; font-size:15px; font-weight:700; color:#fff; flex-shrink:0; }
+    .sb-pname { color:#fff; font-size:13px; font-weight:700; }
+    .sb-pdept { color:var(--teal); font-size:11px; margin-top:2px; }
+    .sb-nav { padding:6px 10px; flex:1; }
+    .sb-label { font-size:10px; font-weight:700; color:rgba(255,255,255,.25); text-transform:uppercase; letter-spacing:.1em; padding:10px 8px 4px; }
+    .sb-item { display:flex; align-items:center; gap:10px; padding:9px 10px; border-radius:8px;
+      color:rgba(255,255,255,.6); font-size:13px; font-weight:500; cursor:pointer;
+      transition:all .2s; margin-bottom:2px; text-decoration:none; }
+    .sb-item:hover  { background:rgba(255,255,255,.07); color:#fff; }
+    .sb-item.active { background:rgba(0,201,167,.14); color:var(--teal); }
+    .sb-item .ic    { font-size:16px; width:20px; text-align:center; }
+    .sb-footer { padding:13px 10px; border-top:1px solid rgba(255,255,255,.07); }
+    .logout-btn { width:100%; padding:9px; background:rgba(239,68,68,.1); color:#fca5a5;
+      border:1px solid rgba(239,68,68,.2); border-radius:8px; font-family:'Instrument Sans',sans-serif;
+      font-size:12px; font-weight:600; cursor:pointer; transition:all .2s; }
+    .logout-btn:hover { background:rgba(239,68,68,.22); }
+
+    /* MAIN */
+    .main { margin-left:var(--sidebar-w); flex:1; padding:30px 32px; }
+    .topbar { display:flex; justify-content:space-between; align-items:center; margin-bottom:26px; flex-wrap:wrap; gap:12px; }
+    .topbar h1 { font-family:'Syne',sans-serif; font-size:22px; font-weight:800; color:var(--navy2); }
+    .topbar .sub { font-size:13px; color:var(--muted); margin-top:3px; }
+
+    .save-btn { padding:11px 24px; background:linear-gradient(135deg,var(--teal-d),var(--teal));
+      color:var(--navy); border:none; border-radius:10px;
+      font-family:'Instrument Sans',sans-serif; font-size:13px; font-weight:700;
+      cursor:pointer; transition:transform .2s,box-shadow .2s; display:flex; align-items:center; gap:8px; }
+    .save-btn:hover { transform:translateY(-1px); box-shadow:0 6px 20px rgba(0,201,167,.35); }
+    .save-btn:disabled { opacity:.6; cursor:not-allowed; transform:none; }
+
+    /* LAYOUT */
+    .grid-2 { display:grid; grid-template-columns:1fr 380px; gap:20px; align-items:start; }
+
+    .card { background:var(--white); border-radius:16px; box-shadow:0 2px 12px rgba(0,0,0,.05); overflow:hidden; }
+    .card-hdr { padding:16px 20px; border-bottom:1px solid #f0f4f8; display:flex; align-items:center; justify-content:space-between; }
+    .card-hdr h2 { font-size:15px; font-weight:700; color:var(--navy2); }
+    .card-hdr span { font-size:12px; color:var(--muted); }
+
+    /* WEEKLY SCHEDULE */
+    .days-grid { padding:20px; display:flex; flex-direction:column; gap:14px; }
+    .day-row { display:flex; align-items:center; gap:14px; }
+    .day-toggle { display:flex; align-items:center; gap:8px; min-width:110px; }
+    .day-toggle input[type=checkbox] { width:17px; height:17px; accent-color:var(--teal); cursor:pointer; }
+    .day-name { font-size:14px; font-weight:600; color:var(--text); }
+    .day-fields { display:flex; align-items:center; gap:8px; flex:1; opacity:.4;
+      transition:opacity .2s; pointer-events:none; }
+    .day-fields.enabled { opacity:1; pointer-events:all; }
+    .time-input { padding:8px 10px; border:1.5px solid var(--border); border-radius:8px;
+      font-family:'Instrument Sans',sans-serif; font-size:13px; color:var(--text);
+      background:#fafafa; outline:none; transition:border-color .2s; }
+    .time-input:focus { border-color:var(--teal); background:#fff; }
+    .time-sep { font-size:13px; color:var(--muted); font-weight:600; }
+    .slot-dur { padding:8px 10px; border:1.5px solid var(--border); border-radius:8px;
+      font-family:'Instrument Sans',sans-serif; font-size:13px; background:#fafafa;
+      outline:none; transition:border-color .2s; }
+    .slot-dur:focus { border-color:var(--teal); background:#fff; }
+    .day-off-label { font-size:12px; color:var(--muted); font-style:italic; }
+
+    /* STATUS MSG */
+    .status-msg { padding:9px 14px; border-radius:8px; font-size:13px; font-weight:500;
+      margin:0 20px 16px; display:none; }
+    .status-msg.show    { display:block; }
+    .status-msg.success { background:#dcfce7; color:#166534; border:1px solid #86efac; }
+    .status-msg.error   { background:#fee2e2; color:#991b1b; border:1px solid #fca5a5; }
+
+    /* DATE PICKER PANEL */
+    .date-picker-panel { padding:20px; }
+    .date-label { font-size:12px; font-weight:700; color:var(--navy2); text-transform:uppercase; letter-spacing:.05em; margin-bottom:8px; }
+    .date-input-wrap { display:flex; gap:8px; margin-bottom:16px; }
+    .date-input-wrap input { flex:1; padding:9px 12px; border:1.5px solid var(--border);
+      border-radius:9px; font-family:'Instrument Sans',sans-serif; font-size:14px;
+      background:#fafafa; outline:none; transition:border-color .2s; }
+    .date-input-wrap input:focus { border-color:var(--teal); background:#fff; }
+    .check-btn { padding:9px 16px; background:var(--navy2); color:#fff; border:none;
+      border-radius:9px; font-family:'Instrument Sans',sans-serif; font-size:13px; font-weight:600;
+      cursor:pointer; white-space:nowrap; transition:background .2s; }
+    .check-btn:hover { background:var(--navy); }
+
+    /* SLOTS DISPLAY */
+    .slots-section { margin-top:4px; }
+    .slots-day-hdr { font-size:13px; font-weight:700; color:var(--navy2); margin-bottom:10px;
+      display:flex; align-items:center; gap:8px; }
+    .slots-day-hdr span { font-size:11px; color:var(--muted); font-weight:500; }
+    .slots-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:7px; }
+    .slot-chip { padding:9px 6px; border-radius:9px; border:1.5px solid var(--border);
+      font-size:12px; font-weight:600; text-align:center; color:var(--text); background:#fafafa;
+      transition:all .2s; }
+    .slot-chip.booked  { background:#fee2e2; border-color:#fca5a5; color:#991b1b; cursor:not-allowed; }
+    .slot-chip.free    { background:#dcfce7; border-color:#86efac; color:#166534; cursor:default; }
+    .slot-chip.outside { background:#f3f4f6; border-color:#e5e7eb; color:#9ca3af; cursor:not-allowed; }
+    .slot-chip:not(.booked):not(.outside) { cursor:default; }
+
+    .legend { display:flex; gap:12px; flex-wrap:wrap; margin-top:14px; }
+    .legend-item { display:flex; align-items:center; gap:5px; font-size:11px; color:var(--muted); }
+    .legend-dot { width:10px; height:10px; border-radius:3px; }
+
+    /* SPINNER */
+    .spinner { display:flex; justify-content:center; padding:32px; }
+    .spin { width:26px; height:26px; border:3px solid var(--border); border-top-color:var(--teal);
+      border-radius:50%; animation:spin .7s linear infinite; }
+    @keyframes spin { to{transform:rotate(360deg)} }
+
+    /* EMPTY */
+    .empty { text-align:center; padding:40px 20px; color:var(--muted); }
+    .empty .ei { font-size:40px; margin-bottom:10px; }
+
+    /* ACCESS DENIED */
+    #access-denied { display:none; position:fixed; inset:0; background:var(--navy);
+      flex-direction:column; align-items:center; justify-content:center;
+      text-align:center; padding:40px; z-index:9999; }
+    #access-denied.show { display:flex; }
+    #access-denied h2 { font-family:'Syne',sans-serif; font-size:24px; color:#fff; margin-bottom:10px; }
+    #access-denied p  { color:rgba(255,255,255,.5); font-size:14px; margin-bottom:24px; }
+    #access-denied a  { padding:12px 28px; background:linear-gradient(135deg,var(--teal-d),var(--teal));
+      color:var(--navy); font-weight:700; text-decoration:none; border-radius:28px; font-size:14px; }
+
+    @media(max-width:900px) {
+      .sidebar { display:none; } .main { margin-left:0; padding:20px 16px; }
+      .grid-2 { grid-template-columns:1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<div id="access-denied">
+  <div style="font-size:56px;margin-bottom:16px;">🔒</div>
+  <h2>Doctors Only</h2>
+  <p>Sign in with your Doctor credentials to manage your availability.</p>
+  <a href="login.html">Sign In →</a>
+</div>
+
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <div class="sb-logo">
+    <div class="sb-logo-icon">🏥</div>
+    <div><div class="sb-logo-name">MediCare</div><div class="sb-logo-sub">Doctor Portal</div></div>
+  </div>
+  <div class="sb-profile">
+    <div class="sb-avatar" id="sb-av">D</div>
+    <div><div class="sb-pname" id="sb-name">Doctor</div><div class="sb-pdept" id="sb-dept">—</div></div>
+  </div>
+  <nav class="sb-nav">
+    <div class="sb-label">Dashboard</div>
+    <a class="sb-item" href="Page8_doctor_dashboard.html"><span class="ic">📅</span> My Appointments</a>
+    <a class="sb-item active" href="doctor_availability.html"><span class="ic">📆</span> My Availability</a>
+    <div class="sb-label">Tools</div>
+    <a class="sb-item" href="Page8_doctor_dashboard.html"><span class="ic">💊</span> Prescriptions</a>
+    <a class="sb-item" href="page9_reports.html"><span class="ic">📂</span> Reports</a>
+    <div class="sb-label">Website</div>
+    <a class="sb-item" href="page1_home.html"><span class="ic">🌐</span> Back to Website</a>
+  </nav>
+  <div class="sb-footer">
+    <button class="logout-btn" onclick="logout()">🚪 Sign Out</button>
+  </div>
+</aside>
+
+<!-- MAIN -->
+<main class="main" id="main-content" style="display:none;">
+  <div class="topbar">
+    <div>
+      <h1>My Availability</h1>
+      <div class="sub">Set your working hours — patients will only see free slots when booking</div>
+    </div>
+    <button class="save-btn" id="save-btn" onclick="saveSchedule()">
+      💾 Save Schedule
+    </button>
+  </div>
+
+  <div class="grid-2">
+    <!-- LEFT: weekly schedule editor -->
+    <div class="card">
+      <div class="card-hdr">
+        <h2>Weekly Working Hours</h2>
+        <span>Slot duration per appointment</span>
+      </div>
+      <div class="status-msg" id="status-msg"></div>
+      <div class="days-grid" id="days-grid">
+        <!-- injected by JS -->
+      </div>
+    </div>
+
+    <!-- RIGHT: date viewer -->
+    <div>
+      <div class="card" style="margin-bottom:16px;">
+        <div class="card-hdr"><h2>Check a Date</h2></div>
+        <div class="date-picker-panel">
+          <div class="date-label">Select date to view slots</div>
+          <div class="date-input-wrap">
+            <input type="date" id="check-date"/>
+            <button class="check-btn" onclick="checkDate()">View →</button>
+          </div>
+          <div id="slots-container">
+            <div class="empty"><div class="ei">📆</div><p>Pick a date to see available slots</p></div>
+          </div>
+          <div class="legend" id="slot-legend" style="display:none;">
+            <div class="legend-item"><div class="legend-dot" style="background:#dcfce7;border:1.5px solid #86efac;"></div>Free</div>
+            <div class="legend-item"><div class="legend-dot" style="background:#fee2e2;border:1.5px solid #fca5a5;"></div>Booked</div>
+            <div class="legend-item"><div class="legend-dot" style="background:#f3f4f6;border:1.5px solid #e5e7eb;"></div>Outside hours</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Summary card -->
+      <div class="card">
+        <div class="card-hdr"><h2>This Week's Load</h2></div>
+        <div id="week-summary" style="padding:16px 20px;">
+          <div class="spinner"><div class="spin"></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script>
+  const SUPABASE_URL      = 'https://pabiuaumumfkzkpajjnx.supabase.co';
+  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBhYml1YXVtdW1ma3prcGFqam54Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg3MzA3NjQsImV4cCI6MjA5NDMwNjc2NH0.v5nnj-yMqBr4nfb1tsVrSr1bAmg3Nc52TThdNd8CllE';
+  const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  // Try backend first, fall back to Supabase direct
+  const API = 'http://localhost:4000/api';
+
+  const DAYS = [
+    { key:'mon', label:'Monday' }, { key:'tue', label:'Tuesday' },
+    { key:'wed', label:'Wednesday' }, { key:'thu', label:'Thursday' },
+    { key:'fri', label:'Friday' }, { key:'sat', label:'Saturday' },
+    { key:'sun', label:'Sunday' }
+  ];
+
+  const SLOT_SIZES = [15,20,30,45,60];
+  let doctor = null;
+  let schedule = {};
+
+  // ── INIT ───────────────────────────────────────────────────────────────
+  window.addEventListener('load', async () => {
+    const stored = sessionStorage.getItem('doctor');
+    if (!stored) { document.getElementById('access-denied').classList.add('show'); return; }
+    doctor = JSON.parse(stored);
+    document.getElementById('main-content').style.display = 'block';
+
+    const initials = doctor.name.replace(/^dr\.?\s*/i,'').split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+    document.getElementById('sb-av').textContent   = initials;
+    document.getElementById('sb-name').textContent = doctor.name;
+    document.getElementById('sb-dept').textContent = doctor.dept || '';
+
+    // Set default date to today
+    document.getElementById('check-date').value = todayStr();
+
+    await loadSchedule();
+    renderDaysGrid();
+    loadWeekSummary();
+  });
+
+  function todayStr() {
+    return new Date().toISOString().split('T')[0];
+  }
+
+  // ── LOAD EXISTING SCHEDULE ─────────────────────────────────────────────
+  async function loadSchedule() {
+    try {
+      // Try backend
+      const jwt = sessionStorage.getItem('jwt');
+      const resp = jwt ? await fetch(`${API}/availability/${encodeURIComponent(doctor.name)}?date=${todayStr()}`,{
+        headers:{'Authorization':'Bearer '+jwt}
+      }).catch(()=>null) : null;
+
+      if (resp?.ok) {
+        // Backend returned booked slots for today — schedule comes from separate PUT endpoint
+        // Load schedule from Supabase directly
+      }
+    } catch(e) {}
+
+    // Load schedule from Supabase
+    const { data } = await sb.from('doctor_availability')
+      .select('schedule').eq('doctor_name', doctor.name).maybeSingle();
+    if (data?.schedule) schedule = typeof data.schedule === 'string' ? JSON.parse(data.schedule) : data.schedule;
+  }
+
+  // ── RENDER DAYS GRID ───────────────────────────────────────────────────
+  function renderDaysGrid() {
+    const container = document.getElementById('days-grid');
+    container.innerHTML = DAYS.map(d => {
+      const cfg = schedule[d.key];
+      const enabled  = !!cfg;
+      const start    = cfg?.start   || '09:00';
+      const end      = cfg?.end     || '17:00';
+      const duration = cfg?.duration || 30;
+
+      return `
+        <div class="day-row" id="row-${d.key}">
+          <div class="day-toggle">
+            <input type="checkbox" id="chk-${d.key}" ${enabled?'checked':''}
+                   onchange="toggleDay('${d.key}')"/>
+            <label class="day-name" for="chk-${d.key}">${d.label}</label>
+          </div>
+          <div class="day-fields ${enabled?'enabled':''}" id="fields-${d.key}">
+            <input type="time" class="time-input" id="start-${d.key}" value="${start}"/>
+            <span class="time-sep">to</span>
+            <input type="time" class="time-input" id="end-${d.key}" value="${end}"/>
+            <select class="slot-dur" id="dur-${d.key}" title="Slot duration (minutes)">
+              ${SLOT_SIZES.map(s=>`<option value="${s}" ${s===duration?'selected':''}>${s} min</option>`).join('')}
+            </select>
+          </div>
+          <div class="day-off-label" id="off-${d.key}" style="display:${enabled?'none':'block'}">Day off</div>
+        </div>`;
+    }).join('');
+  }
+
+  function toggleDay(dayKey) {
+    const checked = document.getElementById('chk-'+dayKey).checked;
+    document.getElementById('fields-'+dayKey).classList.toggle('enabled', checked);
+    document.getElementById('off-'+dayKey).style.display = checked ? 'none' : 'block';
+  }
+
+  // ── SAVE SCHEDULE ──────────────────────────────────────────────────────
+  async function saveSchedule() {
+    const btn = document.getElementById('save-btn');
+    btn.disabled = true; btn.textContent = '⏳ Saving…';
+
+    const newSchedule = {};
+    DAYS.forEach(d => {
+      const enabled = document.getElementById('chk-'+d.key).checked;
+      if (enabled) {
+        newSchedule[d.key] = {
+          start:    document.getElementById('start-'+d.key).value,
+          end:      document.getElementById('end-'+d.key).value,
+          duration: parseInt(document.getElementById('dur-'+d.key).value)
+        };
+      }
+    });
+
+    try {
+      // Try backend API first
+      const jwt = sessionStorage.getItem('jwt');
+      let saved = false;
+      if (jwt) {
+        const resp = await fetch(`${API}/availability/${encodeURIComponent(doctor.name)}`,{
+          method:'PUT',
+          headers:{'Content-Type':'application/json','Authorization':'Bearer '+jwt},
+          body: JSON.stringify({ schedule: newSchedule })
+        }).catch(()=>null);
+        if (resp?.ok) saved = true;
+      }
+
+      // Fallback: direct Supabase
+      if (!saved) {
+        const { error } = await sb.from('doctor_availability')
+          .upsert([{ doctor_name: doctor.name, schedule: newSchedule }], { onConflict:'doctor_name' });
+        if (error) throw error;
+      }
+
+      schedule = newSchedule;
+      showStatus('success','✅ Schedule saved successfully!');
+      loadWeekSummary();
+    } catch(e) {
+      showStatus('error','❌ Failed to save: '+e.message);
+    } finally {
+      btn.disabled = false; btn.textContent = '💾 Save Schedule';
+    }
+  }
+
+  // ── CHECK DATE SLOTS ───────────────────────────────────────────────────
+  async function checkDate() {
+    const date = document.getElementById('check-date').value;
+    if (!date) return;
+    const container = document.getElementById('slots-container');
+    container.innerHTML = '<div class="spinner"><div class="spin"></div></div>';
+    document.getElementById('slot-legend').style.display = 'none';
+
+    try {
+      // Get booked slots
+      const { data: appts } = await sb.from('appointments')
+        .select('confirmed_time,time,status')
+        .eq('doctor', doctor.name)
+        .eq('appointment_date', date)
+        .in('status',['accepted','pending']);
+
+      const bookedSlots = new Set((appts||[]).map(a => a.confirmed_time || a.time).filter(Boolean));
+
+      // Get working hours for day-of-week
+      const dow = ['sun','mon','tue','wed','thu','fri','sat'][new Date(date+'T00:00:00').getDay()];
+      const cfg = schedule[dow];
+
+      if (!cfg) {
+        container.innerHTML = `<div class="empty"><div class="ei">😴</div><p>Day off — no appointments scheduled</p></div>`;
+        return;
+      }
+
+      const slots = generateSlots(cfg.start, cfg.end, cfg.duration);
+      const dayName = new Date(date+'T00:00:00').toLocaleDateString('en-IN',{weekday:'long',day:'numeric',month:'long'});
+
+      let html = `<div class="slots-day-hdr">${dayName} <span>${slots.length} slots · ${bookedSlots.size} booked</span></div>`;
+      html += '<div class="slots-grid">';
+      slots.forEach(slot => {
+        const t24 = to24(slot);
+        const booked  = bookedSlots.has(t24) || bookedSlots.has(slot);
+        const chipCls = booked ? 'booked' : 'free';
+        html += `<div class="slot-chip ${chipCls}">${slot}${booked?' 🔴':''}</div>`;
+      });
+      html += '</div>';
+
+      container.innerHTML = html;
+      document.getElementById('slot-legend').style.display = 'flex';
+    } catch(e) {
+      container.innerHTML = `<div class="empty"><div class="ei">⚠️</div><p>${e.message}</p></div>`;
+    }
+  }
+
+  function generateSlots(start, end, durationMins) {
+    const slots = [];
+    let [h,m] = start.split(':').map(Number);
+    const [eh,em] = end.split(':').map(Number);
+    const endMinutes = eh*60+em;
+    while (h*60+m < endMinutes) {
+      slots.push(formatTime12(h,m));
+      m += durationMins;
+      if (m >= 60) { h += Math.floor(m/60); m = m%60; }
+    }
+    return slots;
+  }
+
+  function formatTime12(h, m) {
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    return (h%12||12)+':'+(String(m).padStart(2,'0'))+' '+ampm;
+  }
+
+  function to24(t12) {
+    if (!t12 || t12.includes(':') && !t12.includes('AM') && !t12.includes('PM')) return t12;
+    const [time, period] = t12.split(' ');
+    let [h, m] = time.split(':').map(Number);
+    if (period === 'PM' && h !== 12) h += 12;
+    if (period === 'AM' && h === 12) h = 0;
+    return String(h).padStart(2,'0')+':'+String(m).padStart(2,'0');
+  }
+
+  // ── WEEK SUMMARY ──────────────────────────────────────────────────────
+  async function loadWeekSummary() {
+    const container = document.getElementById('week-summary');
+    const today = new Date();
+    const monday = new Date(today); monday.setDate(today.getDate() - today.getDay() + 1);
+    const sunday = new Date(monday); sunday.setDate(monday.getDate() + 6);
+    const fmt = d => d.toISOString().split('T')[0];
+
+    try {
+      const { data } = await sb.from('appointments')
+        .select('appointment_date,status,doctor')
+        .eq('doctor', doctor.name)
+        .gte('appointment_date', fmt(monday))
+        .lte('appointment_date', fmt(sunday));
+
+      const appts = data || [];
+      const total    = appts.length;
+      const accepted = appts.filter(a=>a.status==='accepted').length;
+      const pending  = appts.filter(a=>a.status==='pending').length;
+
+      // Group by day
+      const byDay = {};
+      appts.forEach(a => { byDay[a.appointment_date] = (byDay[a.appointment_date]||0)+1; });
+
+      const dayBars = Array.from({length:7},(_,i)=>{
+        const d = new Date(monday); d.setDate(monday.getDate()+i);
+        const ds = fmt(d); const count = byDay[ds]||0;
+        const isToday = ds===fmt(today);
+        const dayShort = d.toLocaleDateString('en-IN',{weekday:'short'});
+        return `
+          <div style="display:flex;flex-direction:column;align-items:center;gap:4px;flex:1;">
+            <div style="font-size:10px;font-weight:600;color:${isToday?'var(--teal)':'var(--muted)'};">${dayShort}</div>
+            <div style="width:100%;height:${Math.max(8,count*12)}px;background:${count>0?(isToday?'var(--teal)':'#c3e8df'):'var(--border)'};border-radius:4px;min-height:8px;max-height:60px;transition:height .3s;"></div>
+            <div style="font-size:11px;font-weight:700;color:${isToday?'var(--teal)':'var(--text)'};">${count||'—'}</div>
+          </div>`;
+      }).join('');
+
+      container.innerHTML = `
+        <div style="display:flex;gap:6px;align-items:flex-end;height:80px;margin-bottom:14px;">${dayBars}</div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;">
+          <div style="text-align:center;padding:10px;background:var(--off);border-radius:10px;">
+            <div style="font-size:22px;font-weight:800;color:var(--navy2);">${total}</div>
+            <div style="font-size:11px;color:var(--muted);">This Week</div>
+          </div>
+          <div style="text-align:center;padding:10px;background:#dcfce7;border-radius:10px;">
+            <div style="font-size:22px;font-weight:800;color:#166534;">${accepted}</div>
+            <div style="font-size:11px;color:#166534;">Confirmed</div>
+          </div>
+          <div style="text-align:center;padding:10px;background:#fef9c3;border-radius:10px;">
+            <div style="font-size:22px;font-weight:800;color:#854d0e;">${pending}</div>
+            <div style="font-size:11px;color:#854d0e;">Pending</div>
+          </div>
+        </div>`;
+    } catch(e) {
+      container.innerHTML = `<div style="color:var(--muted);font-size:13px;padding:8px;">Could not load week data.</div>`;
+    }
+  }
+
+  function showStatus(type, text) {
+    const el = document.getElementById('status-msg');
+    el.className = 'status-msg '+type+' show'; el.textContent = text;
+    setTimeout(()=>el.classList.remove('show'), 4000);
+  }
+
+  function logout() { sessionStorage.clear(); window.location.href='login.html'; }
+</script>
+</body>
+</html>

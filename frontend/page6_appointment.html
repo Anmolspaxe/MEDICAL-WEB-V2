@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Book Appointment — MediCare</title>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
+    :root {
+      --navy:#0d1f33; --navy2:#1a2e44; --teal:#00c9a7; --teal-d:#00a88a;
+      --white:#ffffff; --off:#f4f8f7; --muted:#718096; --text:#1a202c;
+      --border:#e2e8f0; --red:#ef4444; --amber:#f59e0b;
+    }
+    body { font-family:'Instrument Sans',sans-serif; background:var(--off); color:var(--text); }
+
+    /* NAV */
+    nav { display:flex; align-items:center; justify-content:space-between;
+      padding:16px 52px; border-bottom:1px solid var(--border); position:sticky; top:0;
+      background:rgba(255,255,255,.97); backdrop-filter:blur(8px); z-index:100; }
+    .logo { display:flex; align-items:center; gap:10px; text-decoration:none; }
+    .logo img { height:46px; border-radius:8px; }
+    .nav-links { display:flex; gap:34px; list-style:none; }
+    .nav-links a { text-decoration:none; color:var(--muted); font-size:.94rem; font-weight:500; transition:color .2s; }
+    .nav-links a:hover { color:var(--navy2); }
+    .nav-links a.active { color:var(--navy2); font-weight:700; }
+    .btn-book-nav { background:var(--teal); color:var(--navy); padding:10px 22px;
+      border-radius:28px; font-size:.9rem; font-weight:700; text-decoration:none;
+      transition:background .2s; }
+    .btn-book-nav:hover { background:var(--teal-d); }
+
+    /* PAGE LAYOUT */
+    .page-wrap { max-width:1100px; margin:0 auto; padding:40px 24px 80px; }
+    .page-hdr { text-align:center; margin-bottom:40px; }
+    .page-hdr h1 { font-family:'Syne',sans-serif; font-size:clamp(28px,4vw,40px); font-weight:800; color:var(--navy2); margin-bottom:10px; }
+    .page-hdr p  { font-size:15px; color:var(--muted); }
+
+    .book-layout { display:grid; grid-template-columns:1fr 1fr; gap:28px; }
+
+    /* FORM CARD */
+    .form-card { background:var(--white); border-radius:18px; padding:28px 24px;
+      box-shadow:0 4px 20px rgba(0,0,0,.06); }
+    .card-title { font-family:'Syne',sans-serif; font-size:18px; font-weight:800;
+      color:var(--navy2); margin-bottom:20px; display:flex; align-items:center; gap:9px; }
+
+    .fg { margin-bottom:14px; }
+    .fg label { display:block; font-size:12px; font-weight:700; color:var(--navy2);
+      text-transform:uppercase; letter-spacing:.05em; margin-bottom:6px; }
+    .fg input, .fg select, .fg textarea {
+      width:100%; padding:10px 13px; border:1.5px solid var(--border); border-radius:10px;
+      font-family:'Instrument Sans',sans-serif; font-size:14px; color:var(--text);
+      background:#fafafa; outline:none; transition:border-color .2s,box-shadow .2s; }
+    .fg input:focus,.fg select:focus,.fg textarea:focus {
+      border-color:var(--teal); box-shadow:0 0 0 3px rgba(0,201,167,.1); background:#fff; }
+    .fg input::placeholder { color:#aab; }
+    .fg .err { font-size:11px; color:var(--red); margin-top:4px; display:none; }
+    .fg.has-error input,.fg.has-error select { border-color:var(--red); }
+    .fg.has-error .err { display:block; }
+    .fg-row { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+
+    /* DOCTOR CARD SELECT */
+    .doctor-select-grid { display:flex; flex-direction:column; gap:8px; margin-bottom:14px; }
+    .doc-option { display:flex; align-items:center; gap:12px; padding:12px 14px;
+      border:1.5px solid var(--border); border-radius:11px; cursor:pointer;
+      transition:all .2s; background:#fafafa; }
+    .doc-option:hover { border-color:var(--teal); background:#f0fdf8; }
+    .doc-option.selected { border-color:var(--teal); background:#e6faf7; }
+    .doc-option.loading { opacity:.5; pointer-events:none; }
+    .doc-av { width:38px; height:38px; border-radius:50%; display:flex; align-items:center;
+      justify-content:center; font-size:15px; font-weight:700; color:#fff; flex-shrink:0; }
+    .doc-nm { font-size:14px; font-weight:700; color:var(--navy2); }
+    .doc-sp { font-size:12px; color:var(--muted); }
+    .doc-radio { margin-left:auto; width:18px; height:18px; border:2px solid var(--border);
+      border-radius:50%; flex-shrink:0; transition:all .2s; display:flex; align-items:center; justify-content:center; }
+    .doc-option.selected .doc-radio { background:var(--teal); border-color:var(--teal); }
+    .doc-option.selected .doc-radio::after { content:''; width:7px; height:7px; background:#fff; border-radius:50%; }
+
+    /* SLOT PICKER */
+    .slot-section { margin-bottom:14px; }
+    .slot-section .slot-hdr { font-size:12px; font-weight:700; color:var(--muted);
+      text-transform:uppercase; letter-spacing:.05em; margin-bottom:8px; }
+    .slot-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:6px; }
+    .slot-btn { padding:9px 4px; border:1.5px solid var(--border); border-radius:8px;
+      font-family:'Instrument Sans',sans-serif; font-size:12px; font-weight:600;
+      text-align:center; cursor:pointer; background:#fafafa; color:var(--text);
+      transition:all .15s; }
+    .slot-btn:hover:not(.booked):not(.outside) { border-color:var(--teal); color:var(--teal); background:#f0fdf8; }
+    .slot-btn.selected { background:var(--teal); color:var(--navy); border-color:var(--teal); }
+    .slot-btn.booked  { background:#fee2e2; border-color:#fca5a5; color:#fca5a5; cursor:not-allowed; font-size:11px; }
+    .slot-btn.outside { background:#f3f4f6; color:#d1d5db; cursor:not-allowed; }
+    .slot-legend { display:flex; gap:12px; margin-top:8px; flex-wrap:wrap; }
+    .sl-item { display:flex; align-items:center; gap:4px; font-size:11px; color:var(--muted); }
+    .sl-dot { width:10px; height:10px; border-radius:3px; border:1.5px solid; }
+
+    /* SUBMIT */
+    .submit-btn { width:100%; padding:14px; background:linear-gradient(135deg,var(--navy2),var(--navy));
+      color:#fff; border:none; border-radius:11px; font-family:'Instrument Sans',sans-serif;
+      font-size:15px; font-weight:700; cursor:pointer; margin-top:8px;
+      transition:transform .2s,box-shadow .2s,opacity .2s; }
+    .submit-btn:hover { transform:translateY(-2px); box-shadow:0 8px 24px rgba(13,31,51,.25); }
+    .submit-btn:disabled { opacity:.6; cursor:not-allowed; transform:none; }
+
+    .form-msg { padding:10px 14px; border-radius:8px; font-size:13px; font-weight:500;
+      margin-bottom:14px; display:none; }
+    .form-msg.show    { display:block; }
+    .form-msg.success { background:#dcfce7; color:#166534; border:1px solid #86efac; }
+    .form-msg.error   { background:#fee2e2; color:#991b1b; border:1px solid #fca5a5; }
+
+    /* RIGHT: info card */
+    .info-card { background:var(--white); border-radius:18px; padding:24px;
+      box-shadow:0 4px 20px rgba(0,0,0,.06); margin-bottom:18px; }
+    .info-card h3 { font-family:'Syne',sans-serif; font-size:16px; font-weight:800;
+      color:var(--navy2); margin-bottom:14px; }
+    .info-item { display:flex; align-items:flex-start; gap:11px; margin-bottom:14px; }
+    .info-icon { font-size:20px; flex-shrink:0; margin-top:2px; }
+    .info-title { font-size:14px; font-weight:700; color:var(--navy2); margin-bottom:3px; }
+    .info-desc  { font-size:13px; color:var(--muted); line-height:1.6; }
+
+    /* Notification preview */
+    .notif-preview { background:linear-gradient(135deg,#1a2e44,#0d1f33); border-radius:14px; padding:20px; color:#fff; }
+    .notif-preview .np-hdr { font-size:12px; color:rgba(255,255,255,.5); margin-bottom:12px; display:flex; align-items:center; gap:7px; }
+    .np-dot { width:8px; height:8px; background:var(--teal); border-radius:50%; }
+    .np-sms { background:rgba(255,255,255,.08); border-radius:10px; padding:12px 14px; margin-bottom:8px; font-size:13px; line-height:1.6; }
+    .np-email { background:rgba(255,255,255,.05); border-radius:10px; padding:12px 14px; font-size:13px; line-height:1.6; color:rgba(255,255,255,.8); }
+
+    /* SUCCESS MODAL */
+    #success-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.6);
+      z-index:9999; justify-content:center; align-items:center; }
+    #success-overlay.show { display:flex; }
+    .sc-card { background:#fff; border-radius:22px; padding:44px 32px; text-align:center;
+      max-width:400px; width:90%; box-shadow:0 20px 60px rgba(0,0,0,.2);
+      animation:popUp .4s cubic-bezier(.175,.885,.32,1.275); }
+    @keyframes popUp { from{transform:scale(.8);opacity:0} to{transform:scale(1);opacity:1} }
+    .sc-circle { width:80px; height:80px; background:linear-gradient(135deg,#1a7a4a,#2ecc71);
+      border-radius:50%; margin:0 auto 20px; display:flex; align-items:center; justify-content:center; }
+    .sc-circle svg { width:40px; height:40px; }
+    .sc-card h2 { font-family:'Syne',sans-serif; font-size:22px; font-weight:800; color:var(--navy2); margin-bottom:8px; }
+    .sc-card p  { font-size:14px; color:var(--muted); line-height:1.6; margin-bottom:6px; }
+    .sc-pid { background:#e6f9f0; border:1px dashed #2ecc71; border-radius:10px; padding:14px 18px; margin:16px 0; }
+    .sc-pid .label { font-size:12px; color:#1a7a4a; font-weight:600; margin-bottom:4px; }
+    .sc-pid .val   { font-family:monospace; font-size:22px; font-weight:700; color:var(--navy2); letter-spacing:1px; }
+    .sc-actions { display:flex; flex-direction:column; gap:8px; margin-top:6px; }
+    .sc-portal-btn { padding:12px 28px; background:linear-gradient(135deg,var(--teal-d),var(--teal));
+      color:var(--navy); border:none; border-radius:28px; font-family:'Instrument Sans',sans-serif;
+      font-size:14px; font-weight:700; cursor:pointer; text-decoration:none; display:block; text-align:center; }
+    .sc-close-btn  { padding:10px; background:var(--off); border:1px solid var(--border);
+      border-radius:10px; font-family:'Instrument Sans',sans-serif; font-size:13px;
+      font-weight:600; color:var(--muted); cursor:pointer; }
+
+    /* Spinner inline */
+    .inline-spin { display:inline-block; width:14px; height:14px; border:2px solid rgba(255,255,255,.4);
+      border-top-color:#fff; border-radius:50%; animation:spin .7s linear infinite; vertical-align:middle; margin-right:5px; }
+    @keyframes spin { to{transform:rotate(360deg)} }
+
+    @media(max-width:768px) {
+      nav { padding:14px 16px; } .nav-links { display:none; }
+      .book-layout { grid-template-columns:1fr; }
+      .page-wrap { padding:24px 16px 60px; }
+    }
+  </style>
+</head>
+<body>
+
+<nav>
+  <a href="page1_home.html" class="logo">
+    <img src="doctor logo1.jpg" alt="MediCare" onerror="this.style.display='none'"/>
+  </a>
+  <ul class="nav-links">
+    <li><a href="page1_home.html">Home</a></li>
+    <li><a href="page2_services.html">Services</a></li>
+    <li><a href="page3_doctors.html">Doctors</a></li>
+    <li><a href="page4_aboutus.html">About Us</a></li>
+    <li><a href="page5_reviews.html">Reviews</a></li>
+  </ul>
+  <a href="page6_appointment.html" class="btn-book-nav">Book Appointment</a>
+</nav>
+
+<div class="page-wrap">
+  <div class="page-hdr">
+    <h1>Book an Appointment</h1>
+    <p>Choose your doctor, pick an available slot, and receive instant confirmation by SMS & email.</p>
+  </div>
+
+  <div class="book-layout">
+
+    <!-- LEFT: FORM -->
+    <div class="form-card">
+      <div class="card-title">📋 Your Details</div>
+      <div id="form-msg" class="form-msg"></div>
+
+      <div class="fg-row">
+        <div class="fg">
+          <label>Full Name *</label>
+          <input type="text" id="f-name" placeholder="Rahul Sharma"/>
+          <div class="err">Please enter your name</div>
+        </div>
+        <div class="fg">
+          <label>Email *</label>
+          <input type="email" id="f-email" placeholder="you@email.com"/>
+          <div class="err">Valid email required</div>
+        </div>
+      </div>
+      <div class="fg-row">
+        <div class="fg">
+          <label>Phone * <span style="font-size:10px;font-weight:400;color:var(--muted);">(SMS confirmation)</span></label>
+          <input type="tel" id="f-phone" placeholder="+91 98765 43210"/>
+          <div class="err">Phone number required</div>
+        </div>
+        <div class="fg">
+          <label>Age *</label>
+          <input type="number" id="f-age" placeholder="25" min="1" max="120"/>
+          <div class="err">Valid age required</div>
+        </div>
+      </div>
+      <div class="fg-row">
+        <div class="fg">
+          <label>Gender *</label>
+          <select id="f-gender">
+            <option value="">Select gender</option>
+            <option>Male</option><option>Female</option><option>Other</option>
+          </select>
+          <div class="err">Please select gender</div>
+        </div>
+        <div class="fg">
+          <label>Reason / Subject *</label>
+          <input type="text" id="f-subject" placeholder="e.g. Routine check-up"/>
+          <div class="err">Please describe your reason</div>
+        </div>
+      </div>
+
+      <div class="fg">
+        <label>Appointment Date *</label>
+        <input type="date" id="f-date" onchange="onDateChange()"/>
+        <div class="err">Please select a future date</div>
+      </div>
+
+      <div class="card-title" style="margin-top:6px;font-size:16px;">🩺 Choose Doctor</div>
+      <div class="doctor-select-grid" id="doctor-grid">
+        <div style="text-align:center;padding:20px;color:var(--muted);font-size:13px;">
+          <div class="inline-spin" style="border-color:rgba(0,0,0,.2);border-top-color:var(--teal);"></div> Loading doctors…
+        </div>
+      </div>
+
+      <div id="slot-section" style="display:none;">
+        <div class="card-title" style="font-size:16px;">🕐 Available Slots</div>
+        <div id="slots-output">
+          <div style="font-size:13px;color:var(--muted);text-align:center;padding:14px;">Select a date and doctor to see slots.</div>
+        </div>
+      </div>
+
+      <input type="hidden" id="f-doctor" value=""/>
+      <input type="hidden" id="f-slot"   value=""/>
+
+      <button class="submit-btn" id="submit-btn" onclick="submitAppointment()">
+        📅 Book Appointment
+      </button>
+    </div>
+
+    <!-- RIGHT: INFO -->
+    <div>
+      <div class="info-card">
+        <h3>What Happens Next?</h3>
+        <div class="info-item">
+          <div class="info-icon">📧</div>
+          <div><div class="info-title">Email Confirmation</div>
+            <div class="info-desc">You'll receive an email with your Patient ID and appointment details immediately.</div></div>
+        </div>
+        <div class="info-item">
+          <div class="info-icon">📱</div>
+          <div><div class="info-title">SMS Notification</div>
+            <div class="info-desc">Once reception accepts, an SMS is sent to your phone with your confirmed time slot.</div></div>
+        </div>
+        <div class="info-item">
+          <div class="info-icon">✅</div>
+          <div><div class="info-title">Slot Confirmation</div>
+            <div class="info-desc">Reception assigns you a specific time slot from the doctor's live availability calendar.</div></div>
+        </div>
+        <div class="info-item">
+          <div class="info-icon">📋</div>
+          <div><div class="info-title">Patient Portal</div>
+            <div class="info-desc">Track your appointment, view reports, and read prescriptions in your secure portal.</div></div>
+        </div>
+      </div>
+
+      <div class="notif-preview">
+        <div class="np-hdr"><div class="np-dot"></div> Notification Preview</div>
+        <div class="np-sms">
+          📱 <strong>SMS</strong><br/>
+          MediCare: ✅ Your appointment with Dr. Rajesh Sharma on 20 Jan is CONFIRMED at <strong>10:30 AM</strong>. Patient ID: MCP-20240001
+        </div>
+        <div class="np-email">
+          📧 <strong>Email</strong> — Full details + patient ID sent to your inbox immediately after booking.
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- SUCCESS MODAL -->
+<div id="success-overlay">
+  <div class="sc-card">
+    <div class="sc-circle">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="20 6 9 17 4 12"/>
+      </svg>
+    </div>
+    <h2>Appointment Booked!</h2>
+    <p>Your request has been submitted. Reception will assign your time slot and send you an SMS confirmation.</p>
+    <div class="sc-pid">
+      <div class="label">Your Patient ID</div>
+      <div class="val" id="sc-pid">—</div>
+    </div>
+    <p style="font-size:12px;color:#999;">Save this ID for check-in at the hospital.</p>
+    <div class="sc-actions">
+      <a href="page10_patient_portal.html" class="sc-portal-btn">📋 View My Appointments</a>
+      <button class="sc-close-btn" onclick="document.getElementById('success-overlay').classList.remove('show')">Done ✓</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  const SUPABASE_URL      = 'https://pabiuaumumfkzkpajjnx.supabase.co';
+  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBhYml1YXVtdW1ma3prcGFqam54Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg3MzA3NjQsImV4cCI6MjA5NDMwNjc2NH0.v5nnj-yMqBr4nfb1tsVrSr1bAmg3Nc52TThdNd8CllE';
+  const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  const EMAILJS_SERVICE  = 'service_medicare';
+  const EMAILJS_TEMPLATE = 'template_hiiln3c';
+  const EMAILJS_PUBLIC   = 'pqsDPUO_P3hgRBeHP';
+
+  const DOC_COLORS = ['#0d9488','#6366f1','#f59e0b','#ef4444','#8b5cf6','#0ea5e9'];
+  let doctors  = [];
+  let schedule = {};
+
+  // ── INIT ─────────────────────────────────────────────────────────────
+  window.addEventListener('load', async () => {
+    // Set min date = tomorrow
+    const tmr = new Date(); tmr.setDate(tmr.getDate()+1);
+    document.getElementById('f-date').min = tmr.toISOString().split('T')[0];
+    await loadDoctors();
+  });
+
+  const deptMap = { CARD:'Cardiology',ORTH:'Orthopedics',NEURO:'Neurology',PEDI:'Pediatrics',
+    DERM:'Dermatology',GYNE:'Gynecology',OPTH:'Ophthalmology',ENT:'ENT',
+    PSYCH:'Psychiatry',GENSURG:'General Surgery',GENMED:'General Medicine' };
+
+  async function loadDoctors() {
+    const { data, error } = await sb.from('doctors').select('name,department').order('name');
+    if (error || !data?.length) {
+      document.getElementById('doctor-grid').innerHTML =
+        '<div style="color:var(--muted);font-size:13px;text-align:center;padding:16px;">No doctors found. Please check back later.</div>';
+      return;
+    }
+    doctors = data;
+    renderDoctorGrid();
+  }
+
+  function renderDoctorGrid() {
+    const grid = document.getElementById('doctor-grid');
+    grid.innerHTML = doctors.map((d,i) => {
+      const ini = d.name.replace(/^dr\.?\s*/i,'').split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+      const col = DOC_COLORS[i % DOC_COLORS.length];
+      const dept = deptMap[d.department] || d.department;
+      return `
+        <div class="doc-option" id="doc-opt-${i}" onclick="selectDoctor(${i})">
+          <div class="doc-av" style="background:${col};">${ini}</div>
+          <div><div class="doc-nm">${d.name}</div><div class="doc-sp">${dept}</div></div>
+          <div class="doc-radio" id="doc-radio-${i}"></div>
+        </div>`;
+    }).join('');
+  }
+
+  let selectedDocIdx = -1;
+  function selectDoctor(idx) {
+    document.querySelectorAll('.doc-option').forEach(o=>o.classList.remove('selected'));
+    document.getElementById('doc-opt-'+idx).classList.add('selected');
+    selectedDocIdx = idx;
+    document.getElementById('f-doctor').value = doctors[idx].name;
+    loadSlots();
+  }
+
+  // ── DATE CHANGE ───────────────────────────────────────────────────────
+  async function onDateChange() {
+    const date = document.getElementById('f-date').value;
+    const today = new Date().toISOString().split('T')[0];
+    if (date <= today) {
+      document.getElementById('f-date').value='';
+      showMsg('error','⚠️ Please select a date from tomorrow onwards.'); return;
+    }
+    if (selectedDocIdx >= 0) loadSlots();
+  }
+
+  async function loadSlots() {
+    const date = document.getElementById('f-date').value;
+    const docName = document.getElementById('f-doctor').value;
+    if (!date || !docName) return;
+
+    document.getElementById('slot-section').style.display = 'block';
+    document.getElementById('slots-output').innerHTML =
+      '<div style="text-align:center;padding:14px;font-size:13px;color:var(--muted);"><span class="inline-spin" style="border-color:rgba(0,0,0,.2);border-top-color:var(--teal);"></span> Loading slots…</div>';
+    document.getElementById('f-slot').value = '';
+
+    try {
+      // Load doctor's schedule
+      const { data: avail } = await sb.from('doctor_availability')
+        .select('schedule').eq('doctor_name', docName).maybeSingle();
+
+      const dow = ['sun','mon','tue','wed','thu','fri','sat'][new Date(date+'T00:00:00').getDay()];
+      const cfg = avail?.schedule ? (typeof avail.schedule==='string'?JSON.parse(avail.schedule):avail.schedule)[dow] : null;
+
+      // Load booked slots
+      const { data: appts } = await sb.from('appointments')
+        .select('confirmed_time,time,status')
+        .eq('doctor', docName)
+        .eq('appointment_date', date)
+        .in('status',['accepted','pending']);
+
+      const booked = new Set((appts||[]).map(a=>a.confirmed_time||a.time).filter(Boolean));
+
+      if (!cfg) {
+        document.getElementById('slots-output').innerHTML =
+          '<div style="background:#fef9c3;border-radius:10px;padding:14px;font-size:13px;color:#854d0e;text-align:center;">😴 Dr. '+docName+' is not available on this day. Please choose another date.</div>';
+        return;
+      }
+
+      const allSlots = generateSlots(cfg.start, cfg.end, cfg.duration||30);
+      renderSlots(allSlots, booked);
+    } catch(e) {
+      document.getElementById('slots-output').innerHTML =
+        '<div style="color:var(--muted);font-size:13px;padding:14px;">Could not load slots. Please try again.</div>';
+    }
+  }
+
+  function generateSlots(start, end, durMin) {
+    const slots=[]; let [h,m]=start.split(':').map(Number);
+    const [eh,em]=end.split(':').map(Number); const endMin=eh*60+em;
+    while(h*60+m<endMin) {
+      slots.push({ time12:fmt12(h,m), time24:String(h).padStart(2,'0')+':'+String(m).padStart(2,'0') });
+      m+=durMin; if(m>=60){h+=Math.floor(m/60);m=m%60;}
+    }
+    return slots;
+  }
+  function fmt12(h,m) { const ap=h>=12?'PM':'AM'; return (h%12||12)+':'+(String(m).padStart(2,'0'))+' '+ap; }
+
+  function renderSlots(slots, booked) {
+    const morningSlots   = slots.filter(s=>{ const h=parseInt(s.time24); return h<12; });
+    const afternoonSlots = slots.filter(s=>{ const h=parseInt(s.time24); return h>=12&&h<17; });
+    const eveningSlots   = slots.filter(s=>{ const h=parseInt(s.time24); return h>=17; });
+
+    function slotGroup(label, icon, arr) {
+      if (!arr.length) return '';
+      return `<div class="slot-section">
+        <div class="slot-hdr">${icon} ${label}</div>
+        <div class="slot-grid">${arr.map(s=>{
+          const b=booked.has(s.time24)||booked.has(s.time12);
+          return `<div class="slot-btn ${b?'booked':''}" id="slot-${s.time24.replace(':','-')}"
+            ${b?'':`onclick="selectSlot('${s.time12}','${s.time24}',this)"`}>
+            ${s.time12}${b?'<br><span style="font-size:10px;">Booked</span>':''}
+          </div>`;
+        }).join('')}</div>
+      </div>`;
+    }
+
+    const html = slotGroup('Morning','🌅',morningSlots) +
+                 slotGroup('Afternoon','☀️',afternoonSlots) +
+                 slotGroup('Evening','🌆',eveningSlots);
+
+    document.getElementById('slots-output').innerHTML = html+`
+      <div class="slot-legend">
+        <div class="sl-item"><div class="sl-dot" style="background:#fafafa;border-color:var(--border);"></div>Available</div>
+        <div class="sl-item"><div class="sl-dot" style="background:#fee2e2;border-color:#fca5a5;"></div>Booked</div>
+      </div>
+      <div id="selected-slot-display" style="display:none;margin-top:10px;background:#e6faf7;border:1px solid var(--teal);border-radius:9px;padding:10px 14px;font-size:13px;font-weight:700;color:var(--teal-d);">
+        ✅ Selected: <span id="selected-slot-text">—</span>
+      </div>`;
+  }
+
+  function selectSlot(time12, time24, el) {
+    document.querySelectorAll('.slot-btn').forEach(b=>b.classList.remove('selected'));
+    el.classList.add('selected');
+    document.getElementById('f-slot').value = time12;
+    document.getElementById('selected-slot-display').style.display='block';
+    document.getElementById('selected-slot-text').textContent=time12;
+  }
+
+  // ── SUBMIT ─────────────────────────────────────────────────────────────
+  async function submitAppointment() {
+    const name    = document.getElementById('f-name').value.trim();
+    const email   = document.getElementById('f-email').value.trim();
+    const phone   = document.getElementById('f-phone').value.trim();
+    const age     = document.getElementById('f-age').value;
+    const gender  = document.getElementById('f-gender').value;
+    const subject = document.getElementById('f-subject').value.trim();
+    const date    = document.getElementById('f-date').value;
+    const doctor  = document.getElementById('f-doctor').value;
+    const slot    = document.getElementById('f-slot').value;
+
+    if (!name||!email||!phone||!age||!gender||!subject||!date||!doctor) {
+      showMsg('error','⚠️ Please fill in all required fields and select a doctor.'); return;
+    }
+    if (!slot) {
+      showMsg('error','⚠️ Please select a time slot.'); return;
+    }
+
+    const btn = document.getElementById('submit-btn');
+    btn.disabled=true;
+    btn.innerHTML='<span class="inline-spin"></span> Booking…';
+
+    try {
+      // Get or create patient ID
+      const { data: existing } = await sb.from('appointments')
+        .select('patient_id').eq('email',email).not('patient_id','is',null).limit(1);
+      const patientId = (existing?.length && existing[0].patient_id)
+        ? existing[0].patient_id
+        : 'MCP-'+new Date().getFullYear()+Math.floor(1000+Math.random()*9000);
+
+      const record = { patient_id:patientId, name, email, phone, age:parseInt(age), gender,
+        appointment_date:date, time:to24(slot), subject, doctor, status:'pending' };
+
+      const { error } = await sb.from('appointments').insert([record]);
+      if (error) throw error;
+
+      // Email confirmation
+      try {
+        emailjs.init(EMAILJS_PUBLIC);
+        await emailjs.send(EMAILJS_SERVICE, EMAILJS_TEMPLATE, {
+          to_email:patientId, to_name:name, patient_id:patientId, doctor,
+          appt_date:date, appt_time:slot, subject, phone,
+          message:`Dear ${name},\n\nYour appointment request at MediCare has been received.\n\nPatient ID: ${patientId}\nDoctor: ${doctor}\nDate: ${date}\nRequested Time: ${slot}\nReason: ${subject}\n\nReception will confirm your time slot and send an SMS.\n\nPlease arrive 15 minutes early with a valid photo ID.\n\nMediCare Hospital — Sector 5, Vaishali, Ghaziabad\n+91 120 456 7890`
+        });
+      } catch(e) { console.warn('Email:',e); }
+
+      document.getElementById('sc-pid').textContent = patientId;
+      document.getElementById('success-overlay').classList.add('show');
+      document.getElementById('f-name').value='';
+      document.getElementById('f-email').value='';
+      document.getElementById('f-phone').value='';
+      document.getElementById('f-age').value='';
+      document.getElementById('f-gender').value='';
+      document.getElementById('f-subject').value='';
+      document.getElementById('f-date').value='';
+      document.getElementById('f-doctor').value='';
+      document.getElementById('f-slot').value='';
+      document.querySelectorAll('.doc-option').forEach(o=>o.classList.remove('selected'));
+      document.getElementById('slot-section').style.display='none';
+
+    } catch(e) {
+      showMsg('error','❌ '+e.message);
+    } finally {
+      btn.disabled=false; btn.innerHTML='📅 Book Appointment';
+    }
+  }
+
+  function to24(t12) {
+    if (!t12||!t12.includes('AM')&&!t12.includes('PM')) return t12;
+    const [t,period]=t12.split(' ');
+    let [h,m]=t.split(':').map(Number);
+    if(period==='PM'&&h!==12) h+=12;
+    if(period==='AM'&&h===12) h=0;
+    return String(h).padStart(2,'0')+':'+String(m).padStart(2,'0');
+  }
+
+  function showMsg(type, text) {
+    const el=document.getElementById('form-msg');
+    el.className='form-msg '+type+' show'; el.textContent=text;
+    setTimeout(()=>el.classList.remove('show'),5000);
+  }
+</script>
+</body>
+</html>

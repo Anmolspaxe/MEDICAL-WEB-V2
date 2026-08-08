@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>User Management — MediCare Admin</title>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
+    :root {
+      --navy:#0d1f33; --navy2:#1a2e44; --teal:#00c9a7; --teal-d:#00a88a;
+      --white:#fff; --off:#f4f8f7; --muted:#718096; --text:#1a202c;
+      --border:#e2e8f0; --red:#ef4444; --green:#10b981; --sw:250px;
+    }
+    body { font-family:'Instrument Sans',sans-serif; background:var(--off); color:var(--text); min-height:100vh; display:flex; }
+
+    /* SIDEBAR */
+    .sidebar { width:var(--sw); background:var(--navy); min-height:100vh; position:fixed; top:0; left:0; bottom:0; z-index:100; display:flex; flex-direction:column; }
+    .sb-logo { padding:22px 18px 18px; border-bottom:1px solid rgba(255,255,255,.07); display:flex; align-items:center; gap:12px; }
+    .sb-logo-ic { width:40px; height:40px; background:linear-gradient(135deg,var(--teal-d),var(--teal)); border-radius:11px; display:flex; align-items:center; justify-content:center; font-size:20px; box-shadow:0 6px 16px rgba(0,201,167,.25); }
+    .sb-logo-nm { font-family:'Syne',sans-serif; font-size:16px; font-weight:800; color:#fff; }
+    .sb-logo-sb { color:rgba(255,255,255,.35); font-size:10px; text-transform:uppercase; letter-spacing:.08em; }
+    .sb-nav { padding:14px 10px; flex:1; }
+    .sb-lbl { font-size:10px; font-weight:700; color:rgba(255,255,255,.25); text-transform:uppercase; letter-spacing:.1em; padding:10px 8px 4px; }
+    .sb-item { display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:9px; color:rgba(255,255,255,.6); font-size:13px; font-weight:500; cursor:pointer; transition:all .2s; margin-bottom:2px; text-decoration:none; }
+    .sb-item:hover  { background:rgba(255,255,255,.07); color:#fff; }
+    .sb-item.active { background:rgba(0,201,167,.14); color:var(--teal); }
+    .sb-item .ic { font-size:16px; width:20px; text-align:center; }
+    .sb-badge { margin-left:auto; background:var(--teal); color:var(--navy); font-size:10px; font-weight:700; padding:2px 7px; border-radius:20px; }
+    .sb-footer { padding:14px 10px; border-top:1px solid rgba(255,255,255,.07); }
+    .logout-btn { width:100%; padding:9px; background:rgba(239,68,68,.1); color:#fca5a5; border:1px solid rgba(239,68,68,.2); border-radius:8px; font-family:'Instrument Sans',sans-serif; font-size:12px; font-weight:600; cursor:pointer; }
+
+    /* MAIN */
+    .main { margin-left:var(--sw); flex:1; padding:28px 32px; }
+    .topbar { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:24px; flex-wrap:wrap; gap:12px; }
+    .topbar h1 { font-family:'Syne',sans-serif; font-size:22px; font-weight:800; color:var(--navy2); }
+    .topbar .sub { font-size:13px; color:var(--muted); margin-top:3px; }
+
+    /* ROLE TABS */
+    .role-tabs { display:flex; background:var(--white); border-radius:12px; padding:4px; box-shadow:0 2px 10px rgba(0,0,0,.05); margin-bottom:20px; max-width:520px; }
+    .role-tab  { flex:1; padding:10px; border:none; background:none; font-family:'Instrument Sans',sans-serif; font-size:14px; font-weight:600; color:var(--muted); cursor:pointer; border-radius:9px; transition:all .2s; }
+    .role-tab.active { background:var(--navy2); color:#fff; box-shadow:0 2px 8px rgba(26,46,68,.2); }
+
+    /* STATS */
+    .stats { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:22px; }
+    .stat-card { background:var(--white); border-radius:13px; padding:16px; box-shadow:0 2px 10px rgba(0,0,0,.05); display:flex; align-items:center; gap:12px; }
+    .stat-ic  { width:44px; height:44px; border-radius:11px; display:flex; align-items:center; justify-content:center; font-size:20px; flex-shrink:0; }
+    .stat-val { font-size:26px; font-weight:700; color:var(--navy2); line-height:1; }
+    .stat-lbl { font-size:12px; color:var(--muted); margin-top:3px; }
+
+    /* FILTER BAR */
+    .filter-bar { background:var(--white); border-radius:12px; padding:13px 18px; box-shadow:0 2px 10px rgba(0,0,0,.05); display:flex; align-items:center; gap:10px; margin-bottom:18px; flex-wrap:wrap; }
+    .filter-bar input { flex:1; min-width:180px; padding:8px 11px; border:1.5px solid var(--border); border-radius:8px; font-family:'Instrument Sans',sans-serif; font-size:13px; background:#fafafa; outline:none; transition:border-color .2s; }
+    .filter-bar input:focus { border-color:var(--teal); background:#fff; }
+
+    /* TABLE */
+    .table-card { background:var(--white); border-radius:14px; box-shadow:0 2px 12px rgba(0,0,0,.05); overflow:hidden; }
+    .table-hdr  { padding:16px 22px; display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid #f0f4f8; }
+    .table-hdr h2 { font-size:15px; font-weight:700; color:var(--navy2); }
+    table { width:100%; border-collapse:collapse; }
+    thead { background:#f8fafc; }
+    thead th { padding:11px 14px; text-align:left; font-size:11px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:.05em; }
+    tbody tr { border-top:1px solid #f0f4f8; transition:background .15s; }
+    tbody tr:hover { background:#f8fafc; }
+    tbody td { padding:13px 14px; font-size:13px; }
+    .user-name { font-weight:600; color:var(--navy2); }
+    .user-id   { font-size:11px; color:var(--muted); font-family:monospace; }
+    .status-dot { display:inline-flex; align-items:center; gap:5px; font-size:12px; font-weight:600; }
+    .dot-active   { width:7px; height:7px; border-radius:50%; background:var(--green); }
+    .dot-inactive { width:7px; height:7px; border-radius:50%; background:var(--red); }
+    .action-btn { padding:5px 12px; border-radius:7px; font-family:'Instrument Sans',sans-serif; font-size:12px; font-weight:600; cursor:pointer; transition:all .15s; border:1.5px solid; }
+    .btn-deactivate { border-color:#fca5a5; background:#fee2e2; color:#991b1b; }
+    .btn-deactivate:hover { background:var(--red); color:#fff; border-color:var(--red); }
+    .btn-activate   { border-color:#86efac; background:#dcfce7; color:#166534; }
+    .btn-activate:hover   { background:var(--green); color:#fff; border-color:var(--green); }
+    .btn-view { border-color:var(--border); background:#f8fafc; color:var(--navy2); }
+    .btn-view:hover { background:var(--navy2); color:#fff; border-color:var(--navy2); }
+    .dept-badge { display:inline-flex; padding:3px 9px; border-radius:20px; font-size:11px; font-weight:700; background:#e0f2fe; color:#0369a1; }
+
+    /* DETAIL MODAL */
+    .overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.55); z-index:200; justify-content:center; align-items:center; padding:16px; }
+    .overlay.show { display:flex; }
+    .modal { background:var(--white); border-radius:20px; width:100%; max-width:480px; max-height:90vh; overflow-y:auto; box-shadow:0 24px 64px rgba(0,0,0,.2); animation:pop .32s cubic-bezier(.175,.885,.32,1.275); }
+    @keyframes pop { from{transform:scale(.85);opacity:0} to{transform:scale(1);opacity:1} }
+    .modal-hdr { background:var(--navy2); padding:18px 22px; display:flex; align-items:center; justify-content:space-between; position:sticky; top:0; z-index:1; border-radius:20px 20px 0 0; }
+    .modal-hdr h3 { color:#fff; font-size:16px; font-weight:700; }
+    .modal-close { color:rgba(255,255,255,.5); background:none; border:none; font-size:22px; cursor:pointer; }
+    .modal-close:hover { color:#fff; }
+    .modal-body { padding:22px; }
+    .det-row { display:flex; justify-content:space-between; padding:9px 0; border-bottom:1px solid #f0f4f8; font-size:13px; }
+    .det-row:last-child { border:none; }
+    .det-k { color:var(--muted); }
+    .det-v { font-weight:600; color:var(--navy2); text-align:right; max-width:62%; word-break:break-all; }
+    .modal-action-row { display:flex; gap:9px; margin-top:16px; }
+    .modal-deactivate { flex:1; padding:11px; background:#fee2e2; color:#991b1b; border:1.5px solid #fca5a5; border-radius:9px; font-family:'Instrument Sans',sans-serif; font-size:13px; font-weight:700; cursor:pointer; transition:all .2s; }
+    .modal-deactivate:hover { background:var(--red); color:#fff; border-color:var(--red); }
+    .modal-close-btn { padding:11px 18px; background:var(--off); color:var(--muted); border:1px solid var(--border); border-radius:9px; font-family:'Instrument Sans',sans-serif; font-size:13px; font-weight:600; cursor:pointer; }
+
+    /* SPINNER / EMPTY */
+    .spinner { display:flex; justify-content:center; padding:40px; }
+    .spin { width:28px; height:28px; border:3px solid var(--border); border-top-color:var(--teal); border-radius:50%; animation:sp .7s linear infinite; }
+    @keyframes sp { to{transform:rotate(360deg)} }
+    .empty { text-align:center; padding:48px 20px; color:var(--muted); }
+    .empty .ei { font-size:44px; margin-bottom:10px; }
+
+    /* TOAST */
+    .toast-wrap { position:fixed; bottom:22px; right:22px; z-index:999; display:flex; flex-direction:column; gap:8px; }
+    .toast { background:var(--navy2); color:#fff; padding:12px 17px; border-radius:10px; font-size:13px; font-weight:500; box-shadow:0 8px 24px rgba(0,0,0,.2); display:flex; align-items:center; gap:9px; max-width:320px; animation:tIn .3s ease; border-left:4px solid var(--teal); }
+    .toast.err { border-left-color:var(--red); }
+    @keyframes tIn { from{transform:translateX(110%);opacity:0} to{transform:translateX(0);opacity:1} }
+
+    #gate { display:none; position:fixed; inset:0; background:var(--navy); flex-direction:column; align-items:center; justify-content:center; text-align:center; padding:40px; z-index:9999; }
+    #gate.show { display:flex; }
+    #gate h2 { font-family:'Syne',sans-serif; font-size:26px; color:#fff; margin-bottom:10px; }
+    #gate p  { color:rgba(255,255,255,.5); font-size:14px; margin-bottom:24px; }
+    #gate a  { padding:12px 28px; background:linear-gradient(135deg,var(--teal-d),var(--teal)); color:var(--navy); font-weight:700; text-decoration:none; border-radius:28px; }
+
+    @media(max-width:900px) { .sidebar{display:none;} .main{margin-left:0;padding:20px 16px;} .stats{grid-template-columns:repeat(2,1fr);} }
+  </style>
+</head>
+<body>
+
+<div id="gate">
+  <div style="font-size:56px;margin-bottom:16px;">🔒</div>
+  <h2>Reception Staff Only</h2>
+  <p>User management requires receptionist credentials.</p>
+  <a href="login.html">Sign In →</a>
+</div>
+
+<aside class="sidebar">
+  <div class="sb-logo">
+    <div class="sb-logo-ic">🏥</div>
+    <div><div class="sb-logo-nm">MediCare</div><div class="sb-logo-sb">Admin Panel</div></div>
+  </div>
+  <nav class="sb-nav">
+    <div class="sb-lbl">Management</div>
+    <a class="sb-item active" href="admin_users.html"><span class="ic">👥</span>User Management</a>
+    <a class="sb-item" href="Reception_admin_panel.html"><span class="ic">📊</span>Appointments</a>
+    <a class="sb-item" href="audit_trail.html"><span class="ic">🔍</span>Audit Trail</a>
+    <a class="sb-item" href="page9_reports.html"><span class="ic">📂</span>Reports</a>
+    <div class="sb-lbl">Website</div>
+    <a class="sb-item" href="page1_home.html"><span class="ic">🌐</span>Back to Website</a>
+  </nav>
+  <div class="sb-footer">
+    <button class="logout-btn" onclick="logout()">🚪 Sign Out</button>
+  </div>
+</aside>
+
+<main class="main" id="main" style="display:none;">
+  <div class="topbar">
+    <div><h1>User Management</h1><div class="sub">View and manage all registered doctors, patients, and staff</div></div>
+  </div>
+
+  <!-- STATS -->
+  <div class="stats">
+    <div class="stat-card"><div class="stat-ic" style="background:#e0f2fe;">🩺</div><div><div class="stat-val" id="st-doctors">0</div><div class="stat-lbl">Doctors</div></div></div>
+    <div class="stat-card"><div class="stat-ic" style="background:#fce7f3;">🗂️</div><div><div class="stat-val" id="st-reception">0</div><div class="stat-lbl">Receptionists</div></div></div>
+    <div class="stat-card"><div class="stat-ic" style="background:#dcfce7;">👤</div><div><div class="stat-val" id="st-patients">0</div><div class="stat-lbl">Patients</div></div></div>
+    <div class="stat-card"><div class="stat-ic" style="background:#fef9c3;">✅</div><div><div class="stat-val" id="st-active">0</div><div class="stat-lbl">Active Users</div></div></div>
+  </div>
+
+  <!-- ROLE TABS -->
+  <div class="role-tabs">
+    <button class="role-tab active" id="tab-doctors"       onclick="setRole('doctors')">🩺 Doctors</button>
+    <button class="role-tab" id="tab-receptionists"        onclick="setRole('receptionists')">🗂️ Reception</button>
+    <button class="role-tab" id="tab-patients"             onclick="setRole('patients')">👤 Patients</button>
+  </div>
+
+  <!-- FILTER -->
+  <div class="filter-bar">
+    <input type="text" id="search-inp" placeholder="🔍  Search by name, email, or ID…" oninput="applyFilter()"/>
+  </div>
+
+  <!-- TABLE -->
+  <div class="table-card">
+    <div class="table-hdr">
+      <h2 id="table-title">Doctors</h2>
+      <span id="table-count" style="font-size:12px;color:var(--muted);">Loading…</span>
+    </div>
+    <div id="table-body"><div class="spinner"><div class="spin"></div></div></div>
+  </div>
+</main>
+
+<!-- DETAIL MODAL -->
+<div class="overlay" id="detail-modal">
+  <div class="modal">
+    <div class="modal-hdr">
+      <h3 id="modal-title">User Details</h3>
+      <button class="modal-close" onclick="closeModal()">×</button>
+    </div>
+    <div class="modal-body" id="modal-body"></div>
+  </div>
+</div>
+
+<div class="toast-wrap" id="toast-wrap"></div>
+
+<script>
+  const SUPABASE_URL='https://pabiuaumumfkzkpajjnx.supabase.co';
+  const SUPABASE_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBhYml1YXVtdW1ma3prcGFqam54Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg3MzA3NjQsImV4cCI6MjA5NDMwNjc2NH0.v5nnj-yMqBr4nfb1tsVrSr1bAmg3Nc52TThdNd8CllE';
+  const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
+
+  const DEPT_MAP={CARD:'Cardiology',ORTH:'Orthopedics',NEURO:'Neurology',PEDI:'Pediatrics',DERM:'Dermatology',GYNE:'Gynecology',OPTH:'Ophthalmology',ENT:'ENT',PSYCH:'Psychiatry',GENSURG:'General Surgery',GENMED:'General Medicine'};
+
+  let currentRole='doctors', allData=[], currentUser=null;
+
+  // ── INIT ──────────────────────────────────────────────────────────────
+  window.addEventListener('load',async()=>{
+    const rec=sessionStorage.getItem('receptionist');
+    if(!rec){document.getElementById('gate').classList.add('show');return;}
+    currentUser=JSON.parse(rec);
+    document.getElementById('main').style.display='block';
+    await loadAllStats();
+    await loadUsers('doctors');
+  });
+
+  async function loadAllStats(){
+    const[{count:dc},{count:rc},{count:pc}]=await Promise.all([
+      sb.from('doctors').select('*',{count:'exact',head:true}),
+      sb.from('receptionists').select('*',{count:'exact',head:true}),
+      sb.from('patients').select('*',{count:'exact',head:true})
+    ]);
+    document.getElementById('st-doctors').textContent  =dc||0;
+    document.getElementById('st-reception').textContent=rc||0;
+    document.getElementById('st-patients').textContent =pc||0;
+    // Active = those with is_active=true (if column exists) or all
+    const{count:ac}=await sb.from('doctors').select('*',{count:'exact',head:true}).eq('is_active',true);
+    document.getElementById('st-active').textContent=(ac||0)+(rc||0);
+  }
+
+  async function loadUsers(role){
+    document.getElementById('table-body').innerHTML='<div class="spinner"><div class="spin"></div></div>';
+    const tables={doctors:'doctors',receptionists:'receptionists',patients:'patients'};
+    const{data,error}=await sb.from(tables[role]).select('*').order('created_at',{ascending:false});
+    allData=data||[];
+    if(error){document.getElementById('table-body').innerHTML=`<div class="empty"><div class="ei">⚠️</div><p>${error.message}</p></div>`;return;}
+    applyFilter();
+  }
+
+  function applyFilter(){
+    const s=document.getElementById('search-inp').value.toLowerCase();
+    const filtered=allData.filter(u=>
+      (u.name||'').toLowerCase().includes(s)||
+      (u.email||'').toLowerCase().includes(s)||
+      (u.doctor_id||u.staff_id||u.patient_id||'').toLowerCase().includes(s)
+    );
+    renderTable(filtered);
+  }
+
+  function renderTable(data){
+    const titles={doctors:'Doctors',receptionists:'Receptionists',patients:'Patients'};
+    document.getElementById('table-title').textContent=titles[currentRole];
+    document.getElementById('table-count').textContent=data.length+' user'+(data.length!==1?'s':'');
+
+    if(!data.length){document.getElementById('table-body').innerHTML='<div class="empty"><div class="ei">📭</div><p>No users match your search.</p></div>';return;}
+
+    const cols={
+      doctors:      ['doctor_id','name','email','department','phone','is_active','created_at'],
+      receptionists:['staff_id','name','email','phone','is_active','created_at'],
+      patients:     ['patient_id','name','email','phone','gender','age','is_active','created_at']
+    }[currentRole];
+
+    const headers={
+      doctor_id:'Doctor ID',staff_id:'Staff ID',patient_id:'Patient ID',
+      name:'Name',email:'Email',department:'Department',phone:'Phone',
+      gender:'Gender',age:'Age',is_active:'Status',created_at:'Joined'
+    };
+
+    document.getElementById('table-body').innerHTML=`<table><thead><tr>${
+      cols.map(c=>`<th>${headers[c]||c}</th>`).join('')
+    }<th>Actions</th></tr></thead><tbody>${
+      data.map((u,i)=>`<tr>${
+        cols.map(c=>{
+          if(c==='is_active') return`<td><span class="status-dot"><span class="${u[c]!==false?'dot-active':'dot-inactive'}"></span>${u[c]!==false?'Active':'Inactive'}</span></td>`;
+          if(c==='department') return`<td><span class="dept-badge">${DEPT_MAP[u[c]]||u[c]||'—'}</span></td>`;
+          if(c==='created_at') return`<td>${u[c]?new Date(u[c]).toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'}):'—'}</td>`;
+          if(c==='name') return`<td><div class="user-name">${u[c]||'—'}</div><div class="user-id">${u.doctor_id||u.staff_id||u.patient_id||''}</div></td>`;
+          if(c==='doctor_id'||c==='staff_id'||c==='patient_id') return''; // merged into name cell
+          return`<td>${u[c]||'—'}</td>`;
+        }).join('')
+      }<td><div style="display:flex;gap:6px;">
+        <button class="action-btn btn-view" onclick="viewUser(${i})">Details</button>
+        ${u.is_active!==false
+          ?`<button class="action-btn btn-deactivate" onclick="toggleActive(${i},false)">Deactivate</button>`
+          :`<button class="action-btn btn-activate"   onclick="toggleActive(${i},true)">Activate</button>`}
+      </div></td></tr>`).join('')
+    }</tbody></table>`;
+  }
+
+  function viewUser(i){
+    const u=allData[i];
+    const idField=currentRole==='doctors'?'doctor_id':currentRole==='receptionists'?'staff_id':'patient_id';
+    const deptMap=DEPT_MAP;
+    const rows=[
+      [idField.replace('_',' ').replace(/\b\w/g,c=>c.toUpperCase()),u[idField]||'—'],
+      ['Name',u.name||'—'],['Email',u.email||'—'],['Phone',u.phone||'—'],
+      ...(currentRole==='doctors'?[['Department',deptMap[u.department]||u.department||'—']]:
+          currentRole==='patients'?[['Gender',u.gender||'—'],['Age',u.age?u.age+' yrs':'—']]:
+          []),
+      ['Status',u.is_active!==false?'✅ Active':'❌ Inactive'],
+      ['TOTP 2FA',u.totp_secret?'✅ Configured':'⚠️ Not set up'],
+      ['Joined',u.created_at?new Date(u.created_at).toLocaleDateString('en-IN',{weekday:'short',day:'numeric',month:'long',year:'numeric'}):'—']
+    ];
+    document.getElementById('modal-title').textContent=(currentRole==='doctors'?'🩺':currentRole==='receptionists'?'🗂️':'👤')+' '+u.name;
+    document.getElementById('modal-body').innerHTML=rows.map(([k,v])=>`<div class="det-row"><span class="det-k">${k}</span><span class="det-v">${v}</span></div>`).join('')
+    +`<div class="modal-action-row">
+        <button class="modal-close-btn" onclick="closeModal()">Close</button>
+        ${u.is_active!==false
+          ?`<button class="modal-deactivate" onclick="toggleActive(${i},false);closeModal()">Deactivate Account</button>`
+          :`<button class="modal-deactivate" style="background:#dcfce7;color:#166534;border-color:#86efac;" onclick="toggleActive(${i},true);closeModal()">Reactivate Account</button>`}
+      </div>`;
+    document.getElementById('detail-modal').classList.add('show');
+  }
+
+  async function toggleActive(i,active){
+    const u=allData[i];
+    const tables={doctors:'doctors',receptionists:'receptionists',patients:'patients'};
+    const idField={doctors:'doctor_id',receptionists:'staff_id',patients:'patient_id'}[currentRole];
+    const{error}=await sb.from(tables[currentRole]).update({is_active:active}).eq(idField,u[idField]);
+    if(error){toast('❌ '+error.message,true);return;}
+    allData[i]={...u,is_active:active};
+    applyFilter();
+    toast((active?'✅ Activated: ':'❌ Deactivated: ')+u.name);
+    // Audit log
+    await sb.from('audit_logs').insert([{
+      action:active?'USER_ACTIVATED':'USER_DEACTIVATED',
+      actor_id:currentUser.id,actor_role:'receptionist',
+      target_table:tables[currentRole],target_id:u[idField],
+      meta:{user_name:u.name},created_at:new Date().toISOString()
+    }]).catch(()=>{});
+  }
+
+  function setRole(role){
+    currentRole=role;
+    document.querySelectorAll('.role-tab').forEach(t=>t.classList.remove('active'));
+    document.getElementById('tab-'+role).classList.add('active');
+    document.getElementById('search-inp').value='';
+    loadUsers(role);
+  }
+
+  function closeModal(){document.getElementById('detail-modal').classList.remove('show');}
+  function toast(msg,err=false){
+    const t=document.createElement('div');t.className='toast'+(err?' err':'');t.innerHTML=msg;
+    document.getElementById('toast-wrap').appendChild(t);setTimeout(()=>t.remove(),4000);
+  }
+  function logout(){sessionStorage.clear();window.location.href='login.html';}
+</script>
+</body>
+</html>

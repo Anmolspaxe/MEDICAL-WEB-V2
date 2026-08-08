@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Doctor Portal — MediCare</title>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
+    :root {
+      --navy:#0d1f33; --navy2:#1a2e44; --teal:#00c9a7; --teal-d:#00a88a;
+      --white:#fff; --off:#f4f8f7; --muted:#718096; --text:#1a202c; --border:#e2e8f0;
+    }
+    body { font-family:'Instrument Sans',sans-serif; background:var(--navy); min-height:100vh; display:flex; flex-direction:column; }
+
+    /* HEADER */
+    header { background:rgba(255,255,255,.05); border-bottom:1px solid rgba(255,255,255,.08); padding:16px 48px; display:flex; align-items:center; justify-content:space-between; }
+    .logo  { display:flex; align-items:center; gap:12px; text-decoration:none; }
+    .logo-ic { width:40px; height:40px; background:linear-gradient(135deg,var(--teal-d),var(--teal)); border-radius:11px; display:flex; align-items:center; justify-content:center; font-size:20px; box-shadow:0 6px 16px rgba(0,201,167,.25); }
+    .logo-nm { font-family:'Syne',sans-serif; font-size:16px; font-weight:800; color:#fff; }
+    .logo-sb { color:rgba(255,255,255,.35); font-size:10px; text-transform:uppercase; letter-spacing:.08em; }
+    .back-link { color:rgba(255,255,255,.5); font-size:13px; text-decoration:none; transition:color .2s; }
+    .back-link:hover { color:#fff; }
+
+    /* PAGE LAYOUT */
+    .page { flex:1; display:flex; align-items:flex-start; justify-content:center; padding:40px 24px 60px; gap:40px; max-width:1100px; margin:0 auto; width:100%; }
+
+    /* LEFT INFO PANEL */
+    .info-panel { width:300px; flex-shrink:0; padding-top:8px; }
+    .info-panel h2 { font-family:'Syne',sans-serif; font-size:clamp(24px,3vw,34px); font-weight:800; color:#fff; line-height:1.2; margin-bottom:14px; }
+    .info-panel h2 em { color:var(--teal); font-style:normal; }
+    .info-panel p  { font-size:14px; color:rgba(255,255,255,.5); line-height:1.75; margin-bottom:28px; }
+    .id-format-box { background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.1); border-radius:12px; padding:16px; margin-bottom:24px; }
+    .id-format-box h4 { font-size:12px; font-weight:700; color:var(--teal); text-transform:uppercase; letter-spacing:.08em; margin-bottom:10px; }
+    .id-format { font-family:monospace; font-size:15px; color:#fff; font-weight:700; letter-spacing:1px; }
+    .id-format span { color:var(--teal); }
+    .id-example { font-size:12px; color:rgba(255,255,255,.4); margin-top:6px; }
+    .security-items { display:flex; flex-direction:column; gap:9px; }
+    .sec-item { display:flex; align-items:center; gap:10px; background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.07); border-radius:10px; padding:10px 13px; }
+    .sec-item .si  { font-size:17px; }
+    .sec-item .st  { font-size:13px; font-weight:600; color:#fff; }
+    .sec-item .sd  { font-size:11px; color:rgba(255,255,255,.38); margin-top:2px; }
+
+    /* FORM CARD */
+    .form-card { flex:1; max-width:440px; background:var(--off); border-radius:20px; overflow:hidden; }
+
+    /* TABS */
+    .tabs { display:flex; background:#fff; padding:4px; gap:0; }
+    .tab  { flex:1; padding:10px; border:none; background:none; font-family:'Instrument Sans',sans-serif; font-size:14px; font-weight:600; color:var(--muted); cursor:pointer; border-radius:8px; transition:all .2s; }
+    .tab.active { background:var(--navy2); color:#fff; box-shadow:0 2px 8px rgba(26,46,68,.2); }
+
+    /* FORM BODY */
+    .form-body { padding:24px 22px; }
+    .form-body h2 { font-family:'Syne',sans-serif; font-size:20px; font-weight:800; color:var(--navy2); margin-bottom:4px; }
+    .form-body .sub { font-size:13px; color:var(--muted); margin-bottom:18px; }
+
+    .fg { margin-bottom:12px; }
+    .fg label { display:block; font-size:12px; font-weight:700; color:var(--navy2); text-transform:uppercase; letter-spacing:.04em; margin-bottom:5px; }
+    .fg input, .fg select { width:100%; padding:10px 13px; border:1.5px solid var(--border); border-radius:10px; font-family:'Instrument Sans',sans-serif; font-size:14px; color:var(--text); background:#fff; outline:none; transition:border-color .2s,box-shadow .2s; }
+    .fg input:focus, .fg select:focus { border-color:var(--teal); box-shadow:0 0 0 3px rgba(0,201,167,.1); }
+    .fg .hint { font-size:11px; color:var(--muted); margin-top:4px; }
+    .fg-row { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+
+    /* PASSWORD STRENGTH */
+    .sbar  { height:3px; background:var(--border); border-radius:3px; margin-top:5px; overflow:hidden; }
+    .sfill { height:100%; border-radius:3px; width:0; transition:width .3s,background .3s; }
+
+    /* ID PREVIEW */
+    .id-preview { background:#e0f2fe; border:1px dashed #38bdf8; border-radius:9px; padding:10px 14px; margin-bottom:13px; display:none; }
+    .id-preview p  { font-size:11px; color:#0369a1; font-weight:700; margin-bottom:3px; }
+    .id-preview .gid { font-family:monospace; font-size:18px; font-weight:700; color:var(--navy2); letter-spacing:1.5px; }
+
+    /* OTP INPUT */
+    .otp-row { display:flex; gap:7px; margin-bottom:12px; }
+    .otp-d   { flex:1; height:52px; text-align:center; font-size:22px; font-weight:700; border:1.5px solid var(--border); border-radius:10px; background:#fff; font-family:'Instrument Sans',sans-serif; outline:none; transition:border-color .2s; }
+    .otp-d:focus { border-color:var(--teal); }
+    .otp-meta { text-align:center; font-size:12px; color:var(--muted); margin-bottom:10px; }
+    .otp-resend { color:var(--teal); font-weight:600; cursor:pointer; text-decoration:underline; }
+    .back-step  { font-size:12px; color:var(--muted); text-align:center; cursor:pointer; margin-top:8px; display:block; }
+
+    /* TOTP SETUP */
+    .totp-box { background:#f0fdf4; border:1.5px solid #86efac; border-radius:12px; padding:16px; margin-bottom:14px; }
+    .totp-box h4 { font-size:14px; font-weight:700; color:#166534; margin-bottom:8px; }
+    .totp-box p  { font-size:12px; color:#166534; line-height:1.6; margin-bottom:10px; }
+    .totp-qr     { text-align:center; margin:12px 0; }
+    .totp-qr img { width:160px; height:160px; border-radius:8px; border:2px solid #86efac; }
+    .totp-secret { font-family:monospace; font-size:12px; background:#dcfce7; border-radius:6px; padding:6px 10px; word-break:break-all; color:#166534; margin-bottom:10px; }
+
+    /* SUBMIT */
+    .submit-btn { width:100%; padding:13px; background:linear-gradient(135deg,var(--navy2),var(--navy)); color:#fff; border:none; border-radius:10px; font-family:'Instrument Sans',sans-serif; font-size:15px; font-weight:700; cursor:pointer; margin-top:6px; transition:transform .2s,box-shadow .2s,opacity .2s; }
+    .submit-btn:hover   { transform:translateY(-2px); box-shadow:0 8px 22px rgba(13,31,51,.28); }
+    .submit-btn:disabled{ opacity:.6; cursor:not-allowed; transform:none; }
+
+    /* MSG */
+    .msg { padding:10px 13px; border-radius:8px; font-size:13px; font-weight:500; margin-bottom:12px; display:none; }
+    .msg.show.success { display:block; background:#dcfce7; color:#166534; border:1px solid #86efac; }
+    .msg.show.error   { display:block; background:#fee2e2; color:#991b1b; border:1px solid #fca5a5; }
+    .msg.show.info    { display:block; background:#e0f2fe; color:#0369a1; border:1px solid #7dd3fc; }
+
+    .divider { display:flex; align-items:center; gap:10px; margin:14px 0; color:var(--muted); font-size:12px; }
+    .divider::before, .divider::after { content:''; flex:1; height:1px; background:var(--border); }
+
+    /* SUCCESS OVERLAY */
+    #success-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.6); z-index:999; justify-content:center; align-items:center; }
+    #success-overlay.show { display:flex; }
+    .sc { background:#fff; border-radius:22px; padding:44px 32px; text-align:center; max-width:380px; width:90%; box-shadow:0 20px 60px rgba(0,0,0,.22); animation:pop .4s cubic-bezier(.175,.885,.32,1.275); }
+    @keyframes pop { from{transform:scale(.8);opacity:0} to{transform:scale(1);opacity:1} }
+    .sc-circle { width:78px; height:78px; background:linear-gradient(135deg,var(--navy2),var(--teal)); border-radius:50%; margin:0 auto 18px; display:flex; align-items:center; justify-content:center; }
+    .sc-circle svg { width:34px; height:34px; }
+    .sc h2 { font-family:'Syne',sans-serif; font-size:20px; font-weight:800; color:var(--navy2); margin-bottom:7px; }
+    .sc p  { font-size:13px; color:var(--muted); line-height:1.6; }
+    .sc-id-box  { background:#e6faf7; border:1px dashed var(--teal); border-radius:10px; padding:13px; margin:14px 0; }
+    .sc-id-box p  { font-size:11px; color:var(--teal-d); font-weight:700; margin-bottom:3px; }
+    .sc-id-box .bid { font-family:monospace; font-size:20px; font-weight:700; color:var(--navy2); letter-spacing:2px; }
+    .sc-id-box small { font-size:11px; color:var(--muted); }
+    .sc-btn { margin-top:8px; padding:11px 28px; background:linear-gradient(135deg,var(--navy2),var(--teal-d)); color:#fff; border:none; border-radius:28px; font-family:'Instrument Sans',sans-serif; font-size:14px; font-weight:700; cursor:pointer; }
+
+    @media(max-width:860px) { .info-panel{display:none;} .form-card{max-width:100%;} }
+    @media(max-width:560px) { header{padding:14px 16px;} .page{padding:24px 16px 50px;} }
+  </style>
+</head>
+<body>
+
+<header>
+  <a href="page1_home.html" class="logo">
+    <div class="logo-ic">🏥</div>
+    <div><div class="logo-nm">MediCare</div><div class="logo-sb">General Hospital</div></div>
+  </a>
+  <a href="page1_home.html" class="back-link">← Back to Website</a>
+</header>
+
+<div class="page">
+  <!-- LEFT INFO -->
+  <div class="info-panel">
+    <h2>Doctor <em>Portal</em></h2>
+    <p>Register to receive your unique Doctor ID, or sign in to manage your appointments and write prescriptions.</p>
+
+    <div class="id-format-box">
+      <h4>🪪 Your Doctor ID Format</h4>
+      <div class="id-format"><span>MCR</span>-<span>DEPT</span>-<span>0000</span>-<span>ABC</span></div>
+      <div class="id-example">e.g. MCR-CARD-4821-RS</div>
+    </div>
+
+    <div class="security-items">
+      <div class="sec-item"><span class="si">🔐</span><div><div class="st">JWT Auth</div><div class="sd">8-hour signed tokens</div></div></div>
+      <div class="sec-item"><span class="si">📱</span><div><div class="st">SMS 2FA</div><div class="sd">OTP on every login</div></div></div>
+      <div class="sec-item"><span class="si">🔒</span><div><div class="st">bcrypt hashing</div><div class="sd">Cost-12, never plain text</div></div></div>
+      <div class="sec-item"><span class="si">📋</span><div><div class="st">Audit Trail</div><div class="sd">Every action logged</div></div></div>
+    </div>
+  </div>
+
+  <!-- FORM CARD -->
+  <div class="form-card">
+    <div class="tabs">
+      <button class="tab active" id="tab-register" onclick="switchTab('register')">Register</button>
+      <button class="tab"        id="tab-login"    onclick="switchTab('login')">Sign In</button>
+    </div>
+
+    <!-- REGISTER -->
+    <div id="form-register" class="form-body">
+      <h2>Create Account</h2>
+      <p class="sub">Fill in your details — your Doctor ID is generated automatically.</p>
+      <div class="msg" id="reg-msg"></div>
+
+      <div class="fg-row">
+        <div class="fg"><label>Full Name *</label><input type="text" id="r-name" placeholder="Dr. Rajesh Sharma" oninput="previewId()"/></div>
+        <div class="fg"><label>Department *</label>
+          <select id="r-dept" onchange="previewId()">
+            <option value="">Select</option>
+            <option value="CARD">Cardiology</option><option value="ORTH">Orthopedics</option>
+            <option value="NEURO">Neurology</option><option value="PEDI">Pediatrics</option>
+            <option value="DERM">Dermatology</option><option value="GYNE">Gynecology</option>
+            <option value="OPTH">Ophthalmology</option><option value="ENT">ENT</option>
+            <option value="PSYCH">Psychiatry</option><option value="GENSURG">General Surgery</option>
+            <option value="GENMED">General Medicine</option>
+          </select>
+        </div>
+      </div>
+      <div class="fg"><label>Email *</label><input type="email" id="r-email" placeholder="doctor@medicare.com"/></div>
+      <div class="fg"><label>Phone <span style="font-size:10px;font-weight:400;">(enables SMS 2FA)</span></label><input type="tel" id="r-phone" placeholder="+91 98765 43210"/></div>
+
+      <div class="id-preview" id="id-prev">
+        <p>Your Doctor ID will be</p>
+        <div class="gid" id="id-prev-val">—</div>
+      </div>
+
+      <div class="fg"><label>Password *</label>
+        <input type="password" id="r-pass" placeholder="Min. 8 characters" oninput="strengthBar(this.value)"/>
+        <div class="sbar"><div class="sfill" id="sfill"></div></div>
+      </div>
+      <div class="fg"><label>Confirm Password *</label><input type="password" id="r-pass2" placeholder="Re-enter password"/></div>
+
+      <button class="submit-btn" id="reg-btn" onclick="handleRegister()">Register & Get My Doctor ID →</button>
+      <div class="divider">or</div>
+      <p style="text-align:center;font-size:13px;color:var(--muted);">Already registered? <a href="#" onclick="switchTab('login')" style="color:var(--teal);font-weight:600;text-decoration:none;">Sign in</a></p>
+    </div>
+
+    <!-- LOGIN -->
+    <div id="form-login" class="form-body" style="display:none;">
+      <h2>Welcome Back</h2>
+      <p class="sub">Sign in using your Doctor ID or email address.</p>
+      <div class="msg" id="login-msg"></div>
+
+      <!-- Step 1: Credentials -->
+      <div id="step-creds">
+        <div class="fg">
+          <label>Doctor ID or Email *</label>
+          <input type="text" id="l-id" placeholder="MCR-CARD-4821-RS or email" onkeydown="if(event.key==='Enter')handleLogin()"/>
+          <div class="hint">e.g. MCR-CARD-4821-RS or doctor@medicare.com</div>
+        </div>
+        <div class="fg"><label>Password *</label><input type="password" id="l-pass" placeholder="Your password" onkeydown="if(event.key==='Enter')handleLogin()"/></div>
+        <button class="submit-btn" id="login-btn" onclick="handleLogin()">Sign In to Portal →</button>
+      </div>
+
+      <!-- Step 2: OTP -->
+      <div id="step-otp" style="display:none;">
+        <p style="font-size:13px;color:var(--muted);margin-bottom:12px;">Enter the 6-digit code sent to your registered phone.</p>
+        <div class="otp-row">
+          <input class="otp-d" type="tel" maxlength="1" oninput="otpNext(this,0)"/>
+          <input class="otp-d" type="tel" maxlength="1" oninput="otpNext(this,1)"/>
+          <input class="otp-d" type="tel" maxlength="1" oninput="otpNext(this,2)"/>
+          <input class="otp-d" type="tel" maxlength="1" oninput="otpNext(this,3)"/>
+          <input class="otp-d" type="tel" maxlength="1" oninput="otpNext(this,4)"/>
+          <input class="otp-d" type="tel" maxlength="1" oninput="otpNext(this,5)"/>
+        </div>
+        <div class="otp-meta">Expires in <b id="otp-timer">10:00</b> &nbsp;·&nbsp; <span class="otp-resend" onclick="handleLogin(true)">Resend</span></div>
+        <button class="submit-btn" id="otp-btn" onclick="handleOtp()">Verify & Sign In →</button>
+        <span class="back-step" onclick="backToCredentials()">← Back to password</span>
+      </div>
+
+      <!-- Step 3: TOTP setup prompt -->
+      <div id="step-totp" style="display:none;">
+        <div class="totp-box">
+          <h4>🔒 Set Up Authenticator App (Recommended)</h4>
+          <p>Scan this QR code with Google Authenticator, Authy, or any TOTP app for extra security.</p>
+          <div class="totp-qr"><img id="totp-qr-img" src="" alt="QR Code"/></div>
+          <div class="totp-secret" id="totp-secret-txt">Loading…</div>
+          <p style="font-size:11px;color:#166534;">Enter the 6-digit code from your app to verify setup, then go to dashboard.</p>
+        </div>
+        <div class="fg"><label>Authenticator Code *</label><input type="text" id="totp-code" placeholder="000000" maxlength="6" style="font-family:monospace;font-size:18px;letter-spacing:4px;text-align:center;"/></div>
+        <button class="submit-btn" onclick="verifyTotp()">Verify & Continue →</button>
+        <span class="back-step" onclick="skipTotp()">Skip for now → Go to Dashboard</span>
+      </div>
+
+      <div class="divider" id="login-divider">or</div>
+      <p id="login-footer" style="text-align:center;font-size:13px;color:var(--muted);">New here? <a href="#" onclick="switchTab('register')" style="color:var(--teal);font-weight:600;text-decoration:none;">Create an account</a></p>
+    </div>
+  </div>
+</div>
+
+<!-- SUCCESS OVERLAY -->
+<div id="success-overlay">
+  <div class="sc">
+    <div class="sc-circle"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>
+    <h2>Registration Successful!</h2>
+    <p>Welcome to MediCare. Your unique Doctor ID has been created.</p>
+    <div class="sc-id-box">
+      <p>Your Doctor ID</p>
+      <div class="bid" id="sc-doc-id">—</div>
+      <small>⚠️ Save this — you'll use it to sign in</small>
+    </div>
+    <button class="sc-btn" onclick="afterReg()">Go to Sign In →</button>
+  </div>
+</div>
+
+<script>
+  const API='http://localhost:4000/api'; // update to production URL
+  const SUPABASE_URL      = 'https://pabiuaumumfkzkpajjnx.supabase.co';
+  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBhYml1YXVtdW1ma3prcGFqam54Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg3MzA3NjQsImV4cCI6MjA5NDMwNjc2NH0.v5nnj-yMqBr4nfb1tsVrSr1bAmg3Nc52TThdNd8CllE';
+
+  let preAuthToken=null, jwtToken=null, timerInterval=null;
+
+  // ── TAB SWITCH ─────────────────────────────────────────────────────────
+  function switchTab(t){
+    document.getElementById('form-register').style.display=t==='register'?'block':'none';
+    document.getElementById('form-login').style.display   =t==='login'   ?'block':'none';
+    document.getElementById('tab-register').classList.toggle('active',t==='register');
+    document.getElementById('tab-login').classList.toggle('active',t==='login');
+  }
+
+  // ── ID PREVIEW ─────────────────────────────────────────────────────────
+  function previewId(){
+    const name=document.getElementById('r-name').value;
+    const dept=document.getElementById('r-dept').value;
+    const prev=document.getElementById('id-prev');
+    if(name&&dept){
+      const parts=name.replace(/^dr\.?\s*/i,'').trim().split(/\s+/);
+      const ini=parts.map(p=>p[0]?.toUpperCase()||'').join('').slice(0,3);
+      document.getElementById('id-prev-val').textContent=`MCR-${dept}-XXXX-${ini}`;
+      prev.style.display='block';
+    }else prev.style.display='none';
+  }
+
+  // ── PASSWORD STRENGTH ──────────────────────────────────────────────────
+  function strengthBar(val){
+    let s=0;
+    if(val.length>=8)s++;if(/[A-Z]/.test(val))s++;if(/[0-9]/.test(val))s++;if(/[^A-Za-z0-9]/.test(val))s++;
+    const bg=['','#ef4444','#f97316','#eab308','#22c55e'];const w=['0%','25%','50%','75%','100%'];
+    const el=document.getElementById('sfill');el.style.width=w[s];el.style.background=bg[s];
+  }
+
+  // ── SHA-256 fallback ───────────────────────────────────────────────────
+  async function sha256(str){
+    const buf=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(str));
+    return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+  }
+
+  // ── REGISTER ───────────────────────────────────────────────────────────
+  async function handleRegister(){
+    const name =document.getElementById('r-name').value.trim();
+    const dept =document.getElementById('r-dept').value;
+    const email=document.getElementById('r-email').value.trim();
+    const phone=document.getElementById('r-phone').value.trim();
+    const pass =document.getElementById('r-pass').value;
+    const pass2=document.getElementById('r-pass2').value;
+    if(!name||!dept||!email||!pass||!pass2){showMsg('reg-msg','error','⚠️ Fill all required fields.');return;}
+    if(pass!==pass2){showMsg('reg-msg','error','⚠️ Passwords do not match.');return;}
+    if(pass.length<8){showMsg('reg-msg','error','⚠️ Password must be at least 8 characters.');return;}
+    const btn=document.getElementById('reg-btn');btn.disabled=true;btn.textContent='Registering…';
+    try{
+      // Try backend API first
+      let doctorId;
+      try{
+        const resp=await fetch(`${API}/auth/register`,{method:'POST',headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({role:'doctor',name,email,department:dept,phone:phone||undefined,password:pass})});
+        const d=await resp.json();
+        if(!resp.ok)throw new Error(d.error||'Registration failed');
+        doctorId=d.id;
+      }catch(apiErr){
+        // Fallback: direct Supabase
+        const{data:ex}=await sb.from('doctors').select('id').eq('email',email).maybeSingle();
+        if(ex)throw new Error('This email is already registered.');
+        const parts=name.replace(/^dr\.?\s*/i,'').trim().split(/\s+/);
+        const ini=parts.map(p=>p[0]?.toUpperCase()||'').join('').slice(0,3);
+        doctorId=`MCR-${dept}-${Math.floor(1000+Math.random()*9000)}-${ini}`;
+        const hash=await sha256(pass);
+        const{error}=await sb.from('doctors').insert([{doctor_id:doctorId,name,email,department:dept,phone:phone||null,password_hash:hash}]);
+        if(error)throw error;
+      }
+      document.getElementById('sc-doc-id').textContent=doctorId;
+      document.getElementById('success-overlay').classList.add('show');
+    }catch(e){showMsg('reg-msg','error','❌ '+e.message);}
+    finally{btn.disabled=false;btn.textContent='Register & Get My Doctor ID →';}
+  }
+
+  function afterReg(){document.getElementById('success-overlay').classList.remove('show');switchTab('login');}
+
+  // ── LOGIN ──────────────────────────────────────────────────────────────
+  async function handleLogin(resend=false){
+    const id=document.getElementById('l-id').value.trim();
+    const pw=document.getElementById('l-pass').value;
+    if(!id||!pw){showMsg('login-msg','error','⚠️ Fill in all fields.');return;}
+    const btn=document.getElementById('login-btn');btn.disabled=true;btn.textContent='Signing in…';
+    try{
+      const resp=await fetch(`${API}/auth/login`,{method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({role:'doctor',identifier:id,password:pw})});
+      if(resp.ok){
+        const d=await resp.json();
+        if(d.requiresOtp){
+          preAuthToken=d.preToken;
+          showOtpStep();
+          if(resend)showMsg('login-msg','info','📱 New OTP sent to your phone.');
+          else showMsg('login-msg','info','📱 OTP sent to your registered phone.');
+        }else{
+          finishLogin(d);
+        }
+        return;
+      }
+      throw new Error((await resp.json().catch(()=>({}))).error||'Login failed');
+    }catch(apiErr){
+      // Fallback: direct Supabase
+      try{await supabaseLogin(id,pw);}
+      catch(fe){showMsg('login-msg','error','❌ '+fe.message);}
+    }finally{btn.disabled=false;btn.textContent='Sign In to Portal →';}
+  }
+
+  async function supabaseLogin(identifier,password){
+    const field=identifier.includes('@')?'email':'doctor_id';
+    const hash=await sha256(password);
+    const{data,error}=await sb.from('doctors').select('*').eq(field,identifier).eq('password_hash',hash).maybeSingle();
+    if(error||!data)throw new Error('Invalid credentials.');
+    sessionStorage.setItem('doctor',JSON.stringify({id:data.doctor_id,name:data.name,dept:data.department}));
+    showMsg('login-msg','success','✅ Welcome, '+data.name+'! Redirecting…');
+    setTimeout(()=>window.location.href='Page8_doctor_dashboard.html',1200);
+  }
+
+  // ── OTP STEP ────────────────────────────────────────────────────────────
+  function showOtpStep(){
+    document.getElementById('step-creds').style.display='none';
+    document.getElementById('step-otp').style.display='block';
+    document.getElementById('login-divider').style.display='none';
+    document.getElementById('login-footer').style.display='none';
+    document.querySelectorAll('.otp-d').forEach(i=>i.value='');
+    document.querySelectorAll('.otp-d')[0].focus();
+    startTimer(600);
+  }
+  function backToCredentials(){
+    document.getElementById('step-creds').style.display='block';
+    document.getElementById('step-otp').style.display='none';
+    document.getElementById('login-divider').style.display='';
+    document.getElementById('login-footer').style.display='';
+    clearInterval(timerInterval);preAuthToken=null;
+  }
+  function otpNext(el,idx){if(el.value&&idx<5)document.querySelectorAll('.otp-d')[idx+1].focus();}
+  function getOtp(){return Array.from(document.querySelectorAll('.otp-d')).map(i=>i.value).join('');}
+  function startTimer(sec){
+    clearInterval(timerInterval);let r=sec;
+    timerInterval=setInterval(()=>{r--;const el=document.getElementById('otp-timer');if(el){const m=Math.floor(r/60),s=r%60;el.textContent=`${m}:${String(s).padStart(2,'0')}`;}if(r<=0)clearInterval(timerInterval);},1000);
+  }
+
+  async function handleOtp(){
+    const code=getOtp();
+    if(code.length!==6){showMsg('login-msg','error','⚠️ Enter all 6 digits.');return;}
+    const btn=document.getElementById('otp-btn');btn.disabled=true;btn.textContent='Verifying…';
+    try{
+      const resp=await fetch(`${API}/auth/verify-otp`,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+preAuthToken},body:JSON.stringify({code})});
+      const d=await resp.json();
+      if(!resp.ok)throw new Error(d.error||'Verification failed');
+      clearInterval(timerInterval);
+      finishLogin(d);
+    }catch(e){showMsg('login-msg','error','❌ '+e.message);}
+    finally{btn.disabled=false;btn.textContent='Verify & Sign In →';}
+  }
+
+  // ── TOTP SETUP ──────────────────────────────────────────────────────────
+  async function offerTotpSetup(){
+    document.getElementById('step-otp').style.display='none';
+    document.getElementById('step-totp').style.display='block';
+    try{
+      const resp=await fetch(`${API}/auth/setup-totp`,{method:'POST',headers:{'Authorization':'Bearer '+jwtToken}});
+      const d=await resp.json();
+      if(resp.ok){
+        document.getElementById('totp-qr-img').src=d.qrCode;
+        document.getElementById('totp-secret-txt').textContent=d.secret;
+      }
+    }catch(e){skipTotp();}
+  }
+
+  async function verifyTotp(){
+    const code=document.getElementById('totp-code').value.trim();
+    if(code.length!==6){showMsg('login-msg','error','⚠️ Enter 6-digit code.');return;}
+    try{
+      const resp=await fetch(`${API}/auth/verify-totp`,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+jwtToken},body:JSON.stringify({token:code})});
+      if(resp.ok){showMsg('login-msg','success','✅ 2FA verified!');setTimeout(goToDashboard,1200);}
+      else showMsg('login-msg','error','❌ Invalid code. Try again.');
+    }catch(e){showMsg('login-msg','error','❌ '+e.message);}
+  }
+  function skipTotp(){goToDashboard();}
+
+  // ── FINISH LOGIN ────────────────────────────────────────────────────────
+  function finishLogin(data){
+    if(data.token)sessionStorage.setItem('jwt',data.token);
+    jwtToken=data.token;
+    const u=data.user;
+    if(u)sessionStorage.setItem('doctor',JSON.stringify({id:u.id,name:u.name,dept:u.dept||u.department}));
+    showMsg('login-msg','success','✅ Welcome, '+(u?.name||'Doctor')+'!');
+    // Offer TOTP setup if not configured
+    if(data.token){setTimeout(()=>offerTotpSetup(),600);}
+    else setTimeout(goToDashboard,1200);
+  }
+  function goToDashboard(){window.location.href='Page8_doctor_dashboard.html';}
+
+  // ── HELPERS ────────────────────────────────────────────────────────────
+  function showMsg(id,type,text){const el=document.getElementById(id);el.className='msg show '+type;el.textContent=text;}
+  window.addEventListener('load',()=>{if(sessionStorage.getItem('doctor'))window.location.href='Page8_doctor_dashboard.html';});
+</script>
+</body>
+</html>

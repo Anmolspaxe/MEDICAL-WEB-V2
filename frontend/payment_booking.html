@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Pay & Book — MediCare</title>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+  <!-- Razorpay Checkout SDK -->
+  <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
+    :root {
+      --navy:#0d1f33; --navy2:#1a2e44; --teal:#00c9a7; --teal-d:#00a88a;
+      --white:#fff; --off:#f4f8f7; --muted:#718096; --text:#1a202c;
+      --border:#e2e8f0; --red:#ef4444; --amber:#f59e0b;
+    }
+    body { font-family:'Instrument Sans',sans-serif; background:var(--off); color:var(--text); min-height:100vh; }
+
+    /* NAV */
+    nav { display:flex; align-items:center; justify-content:space-between; padding:16px 52px; border-bottom:1px solid var(--border); position:sticky; top:0; background:rgba(255,255,255,.97); backdrop-filter:blur(8px); z-index:100; }
+    .logo { display:flex; align-items:center; gap:10px; text-decoration:none; }
+    .logo img { height:44px; border-radius:8px; }
+    .logo-txt { font-family:'Syne',sans-serif; font-size:16px; font-weight:800; color:var(--navy2); }
+    .nav-links { display:flex; gap:32px; list-style:none; }
+    .nav-links a { text-decoration:none; color:var(--muted); font-size:.94rem; font-weight:500; }
+    .nav-links a:hover { color:var(--navy2); }
+
+    /* PAGE */
+    .page { max-width:940px; margin:0 auto; padding:44px 24px 80px; }
+    .page-hdr { text-align:center; margin-bottom:38px; }
+    .page-hdr h1 { font-family:'Syne',sans-serif; font-size:clamp(26px,4vw,38px); font-weight:800; color:var(--navy2); margin-bottom:10px; }
+    .page-hdr p  { font-size:15px; color:var(--muted); }
+
+    .layout { display:grid; grid-template-columns:1fr 360px; gap:24px; }
+
+    /* FORM CARD */
+    .form-card { background:var(--white); border-radius:18px; padding:28px 24px; box-shadow:0 4px 20px rgba(0,0,0,.06); }
+    .card-title { font-family:'Syne',sans-serif; font-size:17px; font-weight:800; color:var(--navy2); margin-bottom:20px; display:flex; align-items:center; gap:9px; }
+    .fg { margin-bottom:14px; }
+    .fg label { display:block; font-size:12px; font-weight:700; color:var(--navy2); text-transform:uppercase; letter-spacing:.05em; margin-bottom:6px; }
+    .fg input, .fg select { width:100%; padding:10px 13px; border:1.5px solid var(--border); border-radius:10px; font-family:'Instrument Sans',sans-serif; font-size:14px; color:var(--text); background:#fafafa; outline:none; transition:border-color .2s,box-shadow .2s; }
+    .fg input:focus, .fg select:focus { border-color:var(--teal); box-shadow:0 0 0 3px rgba(0,201,167,.1); background:#fff; }
+    .fg-row { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+
+    /* DOCTOR SELECT */
+    .doc-grid { display:flex; flex-direction:column; gap:8px; margin-bottom:14px; }
+    .doc-opt { display:flex; align-items:center; gap:12px; padding:12px 14px; border:1.5px solid var(--border); border-radius:11px; cursor:pointer; transition:all .2s; background:#fafafa; }
+    .doc-opt:hover   { border-color:var(--teal); background:#f0fdf8; }
+    .doc-opt.selected{ border-color:var(--teal); background:#e6faf7; }
+    .doc-av  { width:38px; height:38px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:14px; font-weight:700; color:#fff; flex-shrink:0; }
+    .doc-nm  { font-size:14px; font-weight:700; color:var(--navy2); }
+    .doc-sp  { font-size:12px; color:var(--muted); }
+    .doc-fee { margin-left:auto; font-size:14px; font-weight:700; color:var(--teal-d); white-space:nowrap; }
+    .doc-radio { width:18px; height:18px; border:2px solid var(--border); border-radius:50%; flex-shrink:0; transition:all .2s; display:flex; align-items:center; justify-content:center; }
+    .doc-opt.selected .doc-radio { background:var(--teal); border-color:var(--teal); }
+    .doc-opt.selected .doc-radio::after { content:''; width:7px; height:7px; background:#fff; border-radius:50%; }
+
+    /* SLOT PICKER */
+    .slot-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:6px; margin-bottom:14px; }
+    .slot-btn { padding:9px 4px; border:1.5px solid var(--border); border-radius:8px; font-family:'Instrument Sans',sans-serif; font-size:12px; font-weight:600; text-align:center; cursor:pointer; background:#fafafa; color:var(--text); transition:all .15s; }
+    .slot-btn:hover:not(.booked) { border-color:var(--teal); color:var(--teal); background:#f0fdf8; }
+    .slot-btn.selected { background:var(--teal); color:var(--navy); border-color:var(--teal); }
+    .slot-btn.booked   { background:#fee2e2; border-color:#fca5a5; color:#fca5a5; cursor:not-allowed; font-size:10px; }
+
+    /* MSG */
+    .form-msg { padding:10px 14px; border-radius:8px; font-size:13px; font-weight:500; margin-bottom:14px; display:none; }
+    .form-msg.show.error   { display:block; background:#fee2e2; color:#991b1b; border:1px solid #fca5a5; }
+    .form-msg.show.success { display:block; background:#dcfce7; color:#166534; border:1px solid #86efac; }
+    .form-msg.show.info    { display:block; background:#e0f2fe; color:#0369a1; border:1px solid #7dd3fc; }
+
+    /* PAY BUTTON */
+    .pay-btn { width:100%; padding:15px; background:linear-gradient(135deg,#2563eb,#1d4ed8); color:#fff; border:none; border-radius:11px; font-family:'Instrument Sans',sans-serif; font-size:15px; font-weight:700; cursor:pointer; margin-top:8px; transition:transform .2s,box-shadow .2s,opacity .2s; display:flex; align-items:center; justify-content:center; gap:9px; }
+    .pay-btn:hover   { transform:translateY(-2px); box-shadow:0 8px 24px rgba(37,99,235,.28); }
+    .pay-btn:disabled{ opacity:.6; cursor:not-allowed; transform:none; }
+    .rzp-logo { width:22px; height:22px; background:#fff; border-radius:4px; display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:900; color:#2563eb; }
+
+    /* RIGHT: summary card */
+    .summary-card { background:var(--white); border-radius:18px; padding:24px; box-shadow:0 4px 20px rgba(0,0,0,.06); position:sticky; top:88px; }
+    .summary-card h3 { font-family:'Syne',sans-serif; font-size:15px; font-weight:800; color:var(--navy2); margin-bottom:16px; }
+    .sum-row { display:flex; justify-content:space-between; padding:10px 0; border-bottom:1px solid #f0f4f8; font-size:13px; }
+    .sum-row:last-of-type { border:none; }
+    .sum-key { color:var(--muted); }
+    .sum-val { font-weight:600; color:var(--navy2); text-align:right; }
+    .sum-total { display:flex; justify-content:space-between; padding:14px 0 0; font-size:16px; font-weight:700; color:var(--navy2); border-top:2px solid var(--border); margin-top:10px; }
+    .sum-total .price { color:var(--teal-d); font-size:22px; }
+
+    /* SECURITY BADGES */
+    .security-badges { display:flex; flex-direction:column; gap:8px; margin-top:18px; }
+    .sec-badge { display:flex; align-items:center; gap:9px; font-size:12px; color:var(--muted); }
+    .sec-badge .si { font-size:16px; }
+
+    /* HOW IT WORKS */
+    .how-card { background:linear-gradient(135deg,var(--navy2),var(--navy)); border-radius:16px; padding:20px; margin-top:16px; }
+    .how-card h4 { font-family:'Syne',sans-serif; font-size:14px; color:#fff; margin-bottom:12px; }
+    .how-step { display:flex; align-items:flex-start; gap:10px; margin-bottom:10px; }
+    .how-step:last-child { margin-bottom:0; }
+    .how-num { width:22px; height:22px; background:var(--teal); border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:700; color:var(--navy); flex-shrink:0; margin-top:1px; }
+    .how-txt { font-size:12px; color:rgba(255,255,255,.75); line-height:1.5; }
+
+    /* INLINE SPINNER */
+    .ispin { display:inline-block; width:14px; height:14px; border:2px solid rgba(255,255,255,.4); border-top-color:#fff; border-radius:50%; animation:sp .7s linear infinite; vertical-align:middle; margin-right:5px; }
+    @keyframes sp { to{transform:rotate(360deg)} }
+
+    /* SUCCESS OVERLAY */
+    #success-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.62); z-index:9999; justify-content:center; align-items:center; }
+    #success-overlay.show { display:flex; }
+    .sc-card { background:#fff; border-radius:22px; padding:44px 32px; text-align:center; max-width:420px; width:90%; box-shadow:0 20px 60px rgba(0,0,0,.22); animation:pop .4s cubic-bezier(.175,.885,.32,1.275); }
+    @keyframes pop { from{transform:scale(.8);opacity:0} to{transform:scale(1);opacity:1} }
+    .sc-circle { width:80px; height:80px; background:linear-gradient(135deg,#1a7a4a,#2ecc71); border-radius:50%; margin:0 auto 20px; display:flex; align-items:center; justify-content:center; }
+    .sc-circle svg { width:40px; height:40px; }
+    .sc-card h2 { font-family:'Syne',sans-serif; font-size:22px; font-weight:800; color:var(--navy2); margin-bottom:8px; }
+    .sc-card p  { font-size:14px; color:var(--muted); line-height:1.6; margin-bottom:6px; }
+    .sc-pid { background:#e6f9f0; border:1px dashed #2ecc71; border-radius:10px; padding:14px 18px; margin:16px 0; }
+    .sc-pid .lbl { font-size:12px; color:#1a7a4a; font-weight:600; margin-bottom:4px; }
+    .sc-pid .val { font-family:monospace; font-size:20px; font-weight:700; color:var(--navy2); letter-spacing:1px; }
+    .sc-pid .txn { font-size:11px; color:var(--muted); margin-top:4px; }
+    .sc-actions { display:flex; flex-direction:column; gap:8px; margin-top:8px; }
+    .sc-portal { padding:12px 28px; background:linear-gradient(135deg,var(--teal-d),var(--teal)); color:var(--navy); border:none; border-radius:28px; font-family:'Instrument Sans',sans-serif; font-size:14px; font-weight:700; cursor:pointer; text-decoration:none; display:block; text-align:center; }
+    .sc-done   { padding:10px; background:var(--off); border:1px solid var(--border); border-radius:10px; font-family:'Instrument Sans',sans-serif; font-size:13px; font-weight:600; color:var(--muted); cursor:pointer; }
+
+    @media(max-width:768px) { nav{padding:14px 16px;} .nav-links{display:none;} .layout{grid-template-columns:1fr;} .page{padding:24px 16px 60px;} }
+  </style>
+</head>
+<body>
+
+<nav>
+  <a href="page1_home.html" class="logo">
+    <img src="doctor logo1.jpg" alt="MediCare" onerror="this.style.display='none'"/>
+    <span class="logo-txt">MediCare</span>
+  </a>
+  <ul class="nav-links">
+    <li><a href="page1_home.html">Home</a></li>
+    <li><a href="page2_services.html">Services</a></li>
+    <li><a href="page3_doctors.html">Doctors</a></li>
+    <li><a href="page6_appointment.html">Appointment</a></li>
+  </ul>
+</nav>
+
+<div class="page">
+  <div class="page-hdr">
+    <h1>Pay & Book Appointment</h1>
+    <p>Secure consultation fee payment via Razorpay. Your appointment is confirmed only after payment.</p>
+  </div>
+
+  <div class="layout">
+    <!-- LEFT: FORM -->
+    <div class="form-card">
+      <div class="card-title">📋 Patient Details</div>
+      <div class="form-msg" id="form-msg"></div>
+
+      <div class="fg-row">
+        <div class="fg"><label>Full Name *</label><input type="text" id="f-name" placeholder="Rahul Sharma"/></div>
+        <div class="fg"><label>Email *</label><input type="email" id="f-email" placeholder="you@email.com" oninput="updateSummary()"/></div>
+      </div>
+      <div class="fg-row">
+        <div class="fg"><label>Phone * (for SMS)</label><input type="tel" id="f-phone" placeholder="+91 98765 43210"/></div>
+        <div class="fg"><label>Age *</label><input type="number" id="f-age" placeholder="28" min="1" max="120"/></div>
+      </div>
+      <div class="fg-row">
+        <div class="fg"><label>Gender *</label>
+          <select id="f-gender"><option value="">Select</option><option>Male</option><option>Female</option><option>Other</option></select>
+        </div>
+        <div class="fg"><label>Date *</label><input type="date" id="f-date" onchange="onDateChange()"/></div>
+      </div>
+      <div class="fg"><label>Reason for Visit *</label><input type="text" id="f-subject" placeholder="e.g. Chest pain, follow-up, general check-up"/></div>
+
+      <div class="card-title" style="font-size:16px;margin-top:8px;">🩺 Choose Doctor</div>
+      <div class="doc-grid" id="doc-grid">
+        <div style="text-align:center;padding:20px;color:var(--muted);font-size:13px;"><span class="ispin" style="border-color:rgba(0,0,0,.2);border-top-color:var(--teal);"></span> Loading doctors…</div>
+      </div>
+
+      <div id="slot-section" style="display:none;">
+        <div class="card-title" style="font-size:16px;">🕐 Available Time Slots</div>
+        <div id="slot-output"><div style="color:var(--muted);font-size:13px;text-align:center;padding:12px;">Select a date and doctor to see slots.</div></div>
+        <input type="hidden" id="f-slot"/>
+      </div>
+
+      <input type="hidden" id="f-doctor"/>
+
+      <button class="pay-btn" id="pay-btn" onclick="initiatePayment()">
+        <div class="rzp-logo">₹</div>
+        Pay Consultation Fee & Book
+      </button>
+      <p style="text-align:center;font-size:11px;color:var(--muted);margin-top:10px;">Powered by Razorpay · 100% secure payment</p>
+    </div>
+
+    <!-- RIGHT: SUMMARY -->
+    <div>
+      <div class="summary-card">
+        <h3>Booking Summary</h3>
+        <div class="sum-row"><span class="sum-key">Patient</span><span class="sum-val" id="sum-patient">—</span></div>
+        <div class="sum-row"><span class="sum-key">Doctor</span><span class="sum-val" id="sum-doctor">—</span></div>
+        <div class="sum-row"><span class="sum-key">Date</span><span class="sum-val" id="sum-date">—</span></div>
+        <div class="sum-row"><span class="sum-key">Time Slot</span><span class="sum-val" id="sum-slot">—</span></div>
+        <div class="sum-row"><span class="sum-key">Consultation Fee</span><span class="sum-val" id="sum-fee" style="color:var(--teal-d);">—</span></div>
+        <div class="sum-total"><span>Total (incl. GST)</span><span class="price" id="sum-total">—</span></div>
+
+        <div class="security-badges">
+          <div class="sec-badge"><span class="si">🔒</span>256-bit SSL encrypted payment</div>
+          <div class="sec-badge"><span class="si">💳</span>All cards, UPI, NetBanking, Wallets</div>
+          <div class="sec-badge"><span class="si">🔄</span>Full refund if doctor cancels</div>
+          <div class="sec-badge"><span class="si">📱</span>SMS + Email confirmation on payment</div>
+        </div>
+      </div>
+
+      <div class="how-card">
+        <h4>How it works</h4>
+        <div class="how-step"><div class="how-num">1</div><div class="how-txt">Fill in your details and select a doctor + time slot</div></div>
+        <div class="how-step"><div class="how-num">2</div><div class="how-txt">Pay the consultation fee securely via Razorpay</div></div>
+        <div class="how-step"><div class="how-num">3</div><div class="how-txt">Your appointment is instantly confirmed & saved</div></div>
+        <div class="how-step"><div class="how-num">4</div><div class="how-txt">Receive Patient ID, SMS & email confirmation</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- SUCCESS OVERLAY -->
+<div id="success-overlay">
+  <div class="sc-card">
+    <div class="sc-circle">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="20 6 9 17 4 12"/>
+      </svg>
+    </div>
+    <h2>Payment Successful!</h2>
+    <p>Your appointment has been confirmed. A confirmation email and SMS are on the way.</p>
+    <div class="sc-pid">
+      <div class="lbl">Your Patient ID</div>
+      <div class="val" id="sc-pid">—</div>
+      <div class="txn" id="sc-txn">Payment ID: —</div>
+    </div>
+    <p style="font-size:12px;color:#999;">Save your Patient ID for hospital check-in.</p>
+    <div class="sc-actions">
+      <a href="page10_patient_portal.html" class="sc-portal">📋 View My Appointments</a>
+      <button class="sc-done" onclick="document.getElementById('success-overlay').classList.remove('show')">Done ✓</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ── CONFIG ─────────────────────────────────────────────────────────────
+  // Replace with your live Razorpay key
+  const RZP_KEY = 'rzp_test_REPLACE_WITH_YOUR_KEY';
+
+  const SUPABASE_URL      = 'https://pabiuaumumfkzkpajjnx.supabase.co';
+  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBhYml1YXVtdW1ma3prcGFqam54Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg3MzA3NjQsImV4cCI6MjA5NDMwNjc2NH0.v5nnj-yMqBr4nfb1tsVrSr1bAmg3Nc52TThdNd8CllE';
+  const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  const EMAILJS_SERVICE  = 'service_medicare';
+  const EMAILJS_TEMPLATE = 'template_hiiln3c';
+  const EMAILJS_PUBLIC   = 'pqsDPUO_P3hgRBeHP';
+
+  // Consultation fees per department (INR)
+  const DEPT_FEES = {
+    CARD:500, ORTH:400, NEURO:500, PEDI:300, DERM:350,
+    GYNE:400, OPTH:350, ENT:300, PSYCH:600, GENSURG:450, GENMED:250
+  };
+  const DEPT_MAP = { CARD:'Cardiology',ORTH:'Orthopedics',NEURO:'Neurology',PEDI:'Pediatrics',DERM:'Dermatology',GYNE:'Gynecology',OPTH:'Ophthalmology',ENT:'ENT',PSYCH:'Psychiatry',GENSURG:'General Surgery',GENMED:'General Medicine' };
+  const DOC_COLORS = ['#0d9488','#6366f1','#f59e0b','#ef4444','#8b5cf6','#0ea5e9'];
+
+  let doctors = [], selectedDoc = null, selectedSlot = '', schedule = {};
+
+  // ── INIT ──────────────────────────────────────────────────────────────
+  window.addEventListener('load', async () => {
+    const tmr = new Date(); tmr.setDate(tmr.getDate() + 1);
+    document.getElementById('f-date').min = tmr.toISOString().split('T')[0];
+    document.getElementById('f-name').addEventListener('input', updateSummary);
+    await loadDoctors();
+  });
+
+  async function loadDoctors() {
+    const { data } = await sb.from('doctors').select('name,department').order('name');
+    doctors = data || [];
+    const grid = document.getElementById('doc-grid');
+    if (!doctors.length) { grid.innerHTML = '<div style="color:var(--muted);font-size:13px;text-align:center;padding:16px;">No doctors available.</div>'; return; }
+    grid.innerHTML = doctors.map((d, i) => {
+      const ini = d.name.replace(/^dr\.?\s*/i,'').split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+      const col = DOC_COLORS[i % DOC_COLORS.length];
+      const fee = DEPT_FEES[d.department] || 300;
+      const dept = DEPT_MAP[d.department] || d.department;
+      return `<div class="doc-opt" id="dopt-${i}" onclick="selectDoc(${i})">
+        <div class="doc-av" style="background:${col};">${ini}</div>
+        <div><div class="doc-nm">${d.name}</div><div class="doc-sp">${dept}</div></div>
+        <div class="doc-fee">₹${fee}</div>
+        <div class="doc-radio" id="drad-${i}"></div>
+      </div>`;
+    }).join('');
+  }
+
+  async function selectDoc(i) {
+    document.querySelectorAll('.doc-opt').forEach(o => o.classList.remove('selected'));
+    document.getElementById('dopt-'+i).classList.add('selected');
+    selectedDoc = doctors[i];
+    document.getElementById('f-doctor').value = selectedDoc.name;
+    updateSummary();
+    const date = document.getElementById('f-date').value;
+    if (date) await loadSlots();
+  }
+
+  async function onDateChange() {
+    const date = document.getElementById('f-date').value;
+    const today = new Date().toISOString().split('T')[0];
+    if (date <= today) { showMsg('error', '⚠️ Please select a future date.'); document.getElementById('f-date').value = ''; return; }
+    updateSummary();
+    if (selectedDoc) await loadSlots();
+  }
+
+  async function loadSlots() {
+    const date = document.getElementById('f-date').value;
+    if (!date || !selectedDoc) return;
+    document.getElementById('slot-section').style.display = 'block';
+    document.getElementById('slot-output').innerHTML = '<div style="text-align:center;padding:12px;font-size:13px;color:var(--muted);"><span class="ispin" style="border-color:rgba(0,0,0,.2);border-top-color:var(--teal);"></span> Checking availability…</div>';
+    document.getElementById('f-slot').value = ''; selectedSlot = ''; updateSummary();
+
+    const { data: avail } = await sb.from('doctor_availability').select('schedule').eq('doctor_name', selectedDoc.name).maybeSingle();
+    const dow = ['sun','mon','tue','wed','thu','fri','sat'][new Date(date+'T00:00:00').getDay()];
+    const cfg = avail?.schedule ? (typeof avail.schedule==='string'?JSON.parse(avail.schedule):avail.schedule)[dow] : null;
+
+    const { data: appts } = await sb.from('appointments').select('confirmed_time,time,status').eq('doctor', selectedDoc.name).eq('appointment_date', date).in('status',['accepted','pending']);
+    const booked = new Set((appts||[]).map(a => a.confirmed_time || a.time).filter(Boolean));
+
+    if (!cfg) { document.getElementById('slot-output').innerHTML = '<div style="background:#fef9c3;border-radius:10px;padding:14px;font-size:13px;color:#854d0e;text-align:center;">😴 Not available on this day. Choose another date.</div>'; return; }
+
+    const slots = genSlots(cfg.start, cfg.end, cfg.duration || 30);
+    document.getElementById('slot-output').innerHTML = '<div class="slot-grid">' + slots.map(s => {
+      const b = booked.has(s.t24) || booked.has(s.t12);
+      return `<div class="slot-btn ${b?'booked':''}" ${b?'':``onclick="pickSlot('${s.t12}','${s.t24}',this)"``}>${s.t12}${b?'<br><span style="font-size:9px;">Taken</span>':''}</div>`;
+    }).join('') + '</div><div id="slot-selected-display" style="display:none;margin-top:10px;background:#e6faf7;border:1px solid var(--teal);border-radius:9px;padding:10px 14px;font-size:13px;font-weight:700;color:var(--teal-d);"></div>';
+  }
+
+  function pickSlot(t12, t24, el) {
+    document.querySelectorAll('.slot-btn').forEach(b => b.classList.remove('selected'));
+    el.classList.add('selected');
+    document.getElementById('f-slot').value = t12; selectedSlot = t12;
+    const disp = document.getElementById('slot-selected-display');
+    disp.style.display = 'block'; disp.textContent = '✅ Selected: ' + t12;
+    updateSummary();
+  }
+
+  // ── SUMMARY ────────────────────────────────────────────────────────────
+  function updateSummary() {
+    const name = document.getElementById('f-name').value || '—';
+    const date = document.getElementById('f-date').value;
+    document.getElementById('sum-patient').textContent = name;
+    document.getElementById('sum-doctor').textContent  = selectedDoc?.name || '—';
+    document.getElementById('sum-date').textContent    = date ? new Date(date+'T00:00:00').toLocaleDateString('en-IN',{weekday:'short',day:'numeric',month:'short',year:'numeric'}) : '—';
+    document.getElementById('sum-slot').textContent    = selectedSlot || '—';
+    const fee = selectedDoc ? (DEPT_FEES[selectedDoc.department] || 300) : null;
+    document.getElementById('sum-fee').textContent   = fee ? '₹' + fee : '—';
+    const total = fee ? Math.round(fee * 1.18) : null; // 18% GST
+    document.getElementById('sum-total').textContent = total ? '₹' + total : '—';
+  }
+
+  // ── PAYMENT ────────────────────────────────────────────────────────────
+  async function initiatePayment() {
+    const name    = document.getElementById('f-name').value.trim();
+    const email   = document.getElementById('f-email').value.trim();
+    const phone   = document.getElementById('f-phone').value.trim();
+    const age     = document.getElementById('f-age').value;
+    const gender  = document.getElementById('f-gender').value;
+    const date    = document.getElementById('f-date').value;
+    const subject = document.getElementById('f-subject').value.trim();
+    const doctor  = document.getElementById('f-doctor').value;
+    const slot    = document.getElementById('f-slot').value;
+
+    if (!name || !email || !phone || !age || !gender || !date || !subject || !doctor)
+      return showMsg('error', '⚠️ Please fill in all fields and choose a doctor.');
+    if (!slot)
+      return showMsg('error', '⚠️ Please select a time slot.');
+
+    const fee   = DEPT_FEES[selectedDoc?.department] || 300;
+    const total = Math.round(fee * 1.18);
+    const btn   = document.getElementById('pay-btn');
+    btn.disabled = true; btn.innerHTML = '<span class="ispin"></span> Opening payment…';
+
+    const options = {
+      key:         RZP_KEY,
+      amount:      total * 100,   // paise
+      currency:    'INR',
+      name:        'MediCare Hospital',
+      description: `Consultation – ${doctor}`,
+      image:       '',
+      prefill:     { name, email, contact: phone },
+      notes:       { doctor, appointment_date: date, slot },
+      theme:       { color: '#00c9a7' },
+      handler: async (response) => {
+        await onPaymentSuccess(response, { name, email, phone, age: parseInt(age), gender, date, subject, doctor, slot });
+      },
+      modal: {
+        ondismiss: () => {
+          btn.disabled = false;
+          btn.innerHTML = '<div class="rzp-logo">₹</div> Pay Consultation Fee & Book';
+          showMsg('info', 'Payment cancelled. You can try again when ready.');
+        }
+      }
+    };
+
+    try {
+      new Razorpay(options).open();
+    } catch(e) {
+      // Razorpay not loaded or key invalid — show helpful message
+      showMsg('error', '⚠️ Payment gateway not configured. Replace RZP_KEY in the source with your Razorpay key. See SETUP_GUIDE.md Step 9.');
+      btn.disabled = false;
+      btn.innerHTML = '<div class="rzp-logo">₹</div> Pay Consultation Fee & Book';
+    }
+  }
+
+  async function onPaymentSuccess(rzpResponse, apptData) {
+    try {
+      // 1. Get or create patient ID
+      const { data: existing } = await sb.from('appointments').select('patient_id').eq('email', apptData.email).not('patient_id','is',null).limit(1);
+      const patientId = (existing?.length && existing[0].patient_id)
+        ? existing[0].patient_id
+        : 'MCP-' + new Date().getFullYear() + Math.floor(1000 + Math.random() * 9000);
+
+      // 2. Save appointment with payment reference
+      const { error } = await sb.from('appointments').insert([{
+        patient_id:       patientId,
+        name:             apptData.name,
+        email:            apptData.email,
+        phone:            apptData.phone,
+        age:              apptData.age,
+        gender:           apptData.gender,
+        appointment_date: apptData.date,
+        time:             to24(apptData.slot),
+        subject:          apptData.subject,
+        doctor:           apptData.doctor,
+        status:           'pending',
+        payment_id:       rzpResponse.razorpay_payment_id,
+        payment_status:   'paid'
+      }]);
+      if (error) throw error;
+
+      // 3. Send confirmation email
+      try {
+        emailjs.init(EMAILJS_PUBLIC);
+        await emailjs.send(EMAILJS_SERVICE, EMAILJS_TEMPLATE, {
+          to_email: apptData.email, to_name: apptData.name,
+          patient_id: patientId, doctor: apptData.doctor,
+          appt_date: apptData.date, appt_time: apptData.slot,
+          subject: apptData.subject, phone: apptData.phone,
+          message: `Dear ${apptData.name},\n\nPayment confirmed! Your appointment at MediCare has been booked.\n\nPayment ID  : ${rzpResponse.razorpay_payment_id}\nPatient ID  : ${patientId}\nDoctor      : ${apptData.doctor}\nDate        : ${apptData.date}\nTime        : ${apptData.slot}\nReason      : ${apptData.subject}\n\nPlease arrive 15 minutes early with a valid photo ID.\n\nMediCare Hospital · +91 120 456 7890`
+        });
+      } catch(e) { console.warn('Email:', e); }
+
+      // 4. Show success
+      document.getElementById('sc-pid').textContent = patientId;
+      document.getElementById('sc-txn').textContent = 'Payment ID: ' + rzpResponse.razorpay_payment_id;
+      document.getElementById('success-overlay').classList.add('show');
+
+    } catch(e) {
+      showMsg('error', '❌ Payment received but booking failed: ' + e.message + ' — Please call +91 120 456 7890.');
+    } finally {
+      const btn = document.getElementById('pay-btn');
+      btn.disabled = false;
+      btn.innerHTML = '<div class="rzp-logo">₹</div> Pay Consultation Fee & Book';
+    }
+  }
+
+  // ── HELPERS ────────────────────────────────────────────────────────────
+  function genSlots(start, end, dur) {
+    const slots = []; let [h,m] = start.split(':').map(Number);
+    const [eh,em] = end.split(':').map(Number); const endMin = eh*60+em;
+    while (h*60+m < endMin) {
+      slots.push({ t12:fmt12(h,m), t24:String(h).padStart(2,'0')+':'+String(m).padStart(2,'0') });
+      m += dur; if (m >= 60) { h += Math.floor(m/60); m = m%60; }
+    }
+    return slots;
+  }
+  function fmt12(h, m) { return (h%12||12)+':'+(String(m).padStart(2,'0'))+' '+(h>=12?'PM':'AM'); }
+  function to24(t12) {
+    if (!t12 || (!t12.includes('AM') && !t12.includes('PM'))) return t12;
+    const [t, p] = t12.split(' '); let [h,m] = t.split(':').map(Number);
+    if (p==='PM'&&h!==12) h+=12; if (p==='AM'&&h===12) h=0;
+    return String(h).padStart(2,'0')+':'+String(m).padStart(2,'0');
+  }
+  function showMsg(type, text) {
+    const el = document.getElementById('form-msg');
+    el.className = 'form-msg show ' + type; el.textContent = text;
+    if (type !== 'error') setTimeout(() => el.classList.remove('show'), 5000);
+  }
+</script>
+</body>
+</html>

@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Audit Trail — MediCare</title>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --navy: #0d1f33; --navy2: #1a2e44; --teal: #00c9a7; --teal-d: #00a88a;
+      --white: #ffffff; --off: #f4f8f7; --muted: #718096; --text: #1a202c; --border: #e2e8f0;
+      --sidebar-w: 250px;
+    }
+    body { font-family:'Instrument Sans',sans-serif; background:var(--off); color:var(--text); min-height:100vh; display:flex; }
+
+    .sidebar { width:var(--sidebar-w); background:var(--navy); min-height:100vh;
+      position:fixed; top:0; left:0; bottom:0; z-index:100; display:flex; flex-direction:column; }
+    .sb-logo { padding:22px 18px 18px; border-bottom:1px solid rgba(255,255,255,.07); display:flex; align-items:center; gap:12px; }
+    .sb-logo-icon { width:38px; height:38px; background:linear-gradient(135deg,var(--teal-d),var(--teal)); border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:18px; }
+    .sb-logo-name { font-family:'Syne',sans-serif; font-size:15px; font-weight:800; color:#fff; }
+    .sb-logo-sub  { color:rgba(255,255,255,.38); font-size:10px; text-transform:uppercase; letter-spacing:.07em; }
+    .sb-nav { padding:14px 10px; flex:1; }
+    .sb-label { font-size:10px; font-weight:700; color:rgba(255,255,255,.25); text-transform:uppercase; letter-spacing:.1em; padding:10px 8px 4px; }
+    .sb-item { display:flex; align-items:center; gap:10px; padding:9px 10px; border-radius:8px;
+      color:rgba(255,255,255,.6); font-size:13px; font-weight:500; cursor:pointer;
+      transition:all .2s; margin-bottom:2px; text-decoration:none; }
+    .sb-item:hover  { background:rgba(255,255,255,.07); color:#fff; }
+    .sb-item.active { background:rgba(0,201,167,.14); color:var(--teal); }
+    .sb-item .ic { font-size:16px; width:20px; text-align:center; }
+    .sb-footer { padding:13px 10px; border-top:1px solid rgba(255,255,255,.07); }
+    .logout-btn { width:100%; padding:9px; background:rgba(239,68,68,.1); color:#fca5a5;
+      border:1px solid rgba(239,68,68,.2); border-radius:8px; font-family:'Instrument Sans',sans-serif;
+      font-size:12px; font-weight:600; cursor:pointer; transition:all .2s; }
+
+    .main { margin-left:var(--sidebar-w); flex:1; padding:30px 32px; }
+    .topbar { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:24px; flex-wrap:wrap; gap:12px; }
+    .topbar h1 { font-family:'Syne',sans-serif; font-size:22px; font-weight:800; color:var(--navy2); }
+    .topbar .sub { font-size:13px; color:var(--muted); margin-top:3px; }
+    .export-btn { padding:10px 20px; background:var(--navy2); color:#fff; border:none; border-radius:10px;
+      font-family:'Instrument Sans',sans-serif; font-size:13px; font-weight:600;
+      cursor:pointer; transition:background .2s; display:flex; align-items:center; gap:7px; }
+    .export-btn:hover { background:var(--navy); }
+
+    /* STATS */
+    .stats { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:22px; }
+    .stat-card { background:var(--white); border-radius:13px; padding:16px;
+      box-shadow:0 2px 10px rgba(0,0,0,.05); display:flex; align-items:center; gap:12px; }
+    .stat-ic { width:42px; height:42px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:19px; flex-shrink:0; }
+    .stat-val { font-size:24px; font-weight:700; color:var(--navy2); line-height:1; }
+    .stat-lbl { font-size:12px; color:var(--muted); margin-top:3px; }
+
+    /* FILTERS */
+    .filter-bar { background:var(--white); border-radius:12px; padding:14px 18px;
+      box-shadow:0 2px 10px rgba(0,0,0,.05); display:flex; align-items:center; gap:10px;
+      margin-bottom:18px; flex-wrap:wrap; }
+    .filter-bar input, .filter-bar select {
+      padding:8px 11px; border:1.5px solid var(--border); border-radius:8px;
+      font-family:'Instrument Sans',sans-serif; font-size:13px; color:var(--text);
+      background:#fafafa; outline:none; transition:border-color .2s; }
+    .filter-bar input:focus, .filter-bar select:focus { border-color:var(--teal); background:#fff; }
+    .filter-bar input { flex:1; min-width:160px; }
+    .clear-btn { padding:8px 14px; background:var(--off); border:1.5px solid var(--border);
+      border-radius:8px; font-size:12px; font-weight:600; color:var(--muted); cursor:pointer; }
+    .clear-btn:hover { background:var(--border); color:var(--text); }
+
+    /* LOG TABLE */
+    .table-card { background:var(--white); border-radius:14px; box-shadow:0 2px 10px rgba(0,0,0,.05); overflow:hidden; }
+    .table-hdr { padding:16px 20px; border-bottom:1px solid #f0f4f8; display:flex; align-items:center; justify-content:space-between; }
+    .table-hdr h2 { font-size:15px; font-weight:700; color:var(--navy2); }
+    .table-hdr span { font-size:12px; color:var(--muted); }
+
+    table { width:100%; border-collapse:collapse; }
+    thead { background:#f8fafc; }
+    thead th { padding:11px 14px; text-align:left; font-size:11px; font-weight:700; color:var(--muted);
+      text-transform:uppercase; letter-spacing:.05em; }
+    tbody tr { border-top:1px solid #f0f4f8; transition:background .15s; }
+    tbody tr:hover { background:#f8fafc; }
+    tbody td { padding:12px 14px; font-size:13px; color:var(--text); }
+    .mono { font-family:monospace; font-size:12px; }
+
+    /* Action badges */
+    .action-badge { display:inline-flex; align-items:center; gap:4px; padding:3px 9px;
+      border-radius:20px; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; }
+    .ab-login      { background:#e0f2fe; color:#0369a1; }
+    .ab-login_otp  { background:#dbeafe; color:#1d4ed8; }
+    .ab-login_fail { background:#fee2e2; color:#991b1b; }
+    .ab-register   { background:#dcfce7; color:#166534; }
+    .ab-consent    { background:#f0fdf4; color:#15803d; }
+    .ab-create     { background:#e0f2fe; color:#0369a1; }
+    .ab-update     { background:#fef9c3; color:#854d0e; }
+    .ab-totp       { background:#fae8ff; color:#7e22ce; }
+    .ab-default    { background:#f3f4f6; color:#6b7280; }
+
+    /* Role pill */
+    .role-pill { padding:2px 8px; border-radius:20px; font-size:11px; font-weight:600; }
+    .role-doctor       { background:#e0f2fe; color:#0369a1; }
+    .role-receptionist { background:#fce7f3; color:#9d174d; }
+    .role-patient      { background:#dcfce7; color:#166534; }
+    .role-unknown      { background:#f3f4f6; color:#6b7280; }
+
+    /* Expand details */
+    .detail-toggle { padding:3px 8px; background:var(--off); border:1px solid var(--border);
+      border-radius:6px; font-size:11px; font-weight:600; color:var(--muted);
+      cursor:pointer; transition:all .15s; }
+    .detail-toggle:hover { background:var(--border); color:var(--text); }
+    .detail-row { background:#fafafa; border-top:1px solid #f0f4f8; }
+    .detail-row td { padding:8px 14px 12px 42px; font-size:12px; color:var(--muted); }
+    .meta-pre { font-family:monospace; font-size:11px; background:#f3f4f6; border-radius:6px;
+      padding:8px 10px; white-space:pre-wrap; word-break:break-all; color:var(--text); }
+
+    .spinner { display:flex; justify-content:center; padding:40px; }
+    .spin { width:26px; height:26px; border:3px solid var(--border); border-top-color:var(--teal); border-radius:50%; animation:spin .7s linear infinite; }
+    @keyframes spin { to{transform:rotate(360deg)} }
+    .empty { text-align:center; padding:48px 20px; color:var(--muted); }
+    .empty .ei { font-size:40px; margin-bottom:10px; }
+
+    /* Real-time indicator */
+    .live-badge { display:inline-flex; align-items:center; gap:5px; background:#dcfce7; color:#166534;
+      border:1px solid #86efac; border-radius:20px; padding:4px 10px; font-size:11px; font-weight:600; }
+    .live-dot { width:7px; height:7px; background:#22c55e; border-radius:50%; animation:pulse 1.4s infinite; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+    #access-denied { display:none; position:fixed; inset:0; background:var(--navy);
+      flex-direction:column; align-items:center; justify-content:center;
+      text-align:center; padding:40px; z-index:9999; }
+    #access-denied.show { display:flex; }
+    #access-denied h2 { font-family:'Syne',sans-serif; font-size:24px; color:#fff; margin-bottom:10px; }
+    #access-denied p  { color:rgba(255,255,255,.5); font-size:14px; margin-bottom:24px; }
+    #access-denied a  { padding:12px 28px; background:linear-gradient(135deg,var(--teal-d),var(--teal));
+      color:var(--navy); font-weight:700; text-decoration:none; border-radius:28px; font-size:14px; }
+
+    @media(max-width:900px) {
+      .sidebar{display:none;} .main{margin-left:0;padding:20px 16px;}
+      .stats{grid-template-columns:repeat(2,1fr);}
+    }
+  </style>
+</head>
+<body>
+
+<div id="access-denied">
+  <div style="font-size:56px;margin-bottom:16px;">🔒</div>
+  <h2>Reception Staff Only</h2>
+  <p>The audit trail is accessible to authorised receptionist staff only.</p>
+  <a href="login.html">Sign In →</a>
+</div>
+
+<aside class="sidebar">
+  <div class="sb-logo">
+    <div class="sb-logo-icon">🏥</div>
+    <div><div class="sb-logo-name">MediCare</div><div class="sb-logo-sub">Admin Panel</div></div>
+  </div>
+  <nav class="sb-nav">
+    <div class="sb-label">Main</div>
+    <a class="sb-item" href="Reception_admin_panel.html"><span class="ic">📊</span> Dashboard</a>
+    <a class="sb-item" href="Reception_admin_panel.html"><span class="ic">📅</span> Appointments</a>
+    <div class="sb-label">Security</div>
+    <a class="sb-item active" href="audit_trail.html"><span class="ic">🔍</span> Audit Trail</a>
+    <a class="sb-item" href="page9_reports.html"><span class="ic">📂</span> Reports</a>
+    <div class="sb-label">Website</div>
+    <a class="sb-item" href="page1_home.html"><span class="ic">🌐</span> Back to Website</a>
+  </nav>
+  <div class="sb-footer">
+    <button class="logout-btn" onclick="logout()">🚪 Sign Out</button>
+  </div>
+</aside>
+
+<main class="main" id="main-content" style="display:none;">
+  <div class="topbar">
+    <div>
+      <h1>Audit Trail</h1>
+      <div class="sub">Tamper-evident log of every action — append-only, cannot be deleted</div>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;">
+      <div class="live-badge"><div class="live-dot"></div>Live</div>
+      <button class="export-btn" onclick="exportCSV()">⬇️ Export CSV</button>
+    </div>
+  </div>
+
+  <!-- STATS -->
+  <div class="stats">
+    <div class="stat-card">
+      <div class="stat-ic" style="background:#e0f2fe;">📋</div>
+      <div><div class="stat-val" id="st-total">0</div><div class="stat-lbl">Total Events</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-ic" style="background:#fee2e2;">🚨</div>
+      <div><div class="stat-val" id="st-fail">0</div><div class="stat-lbl">Failed Logins</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-ic" style="background:#dcfce7;">✅</div>
+      <div><div class="stat-val" id="st-login">0</div><div class="stat-lbl">Successful Logins</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-ic" style="background:#fef9c3;">📝</div>
+      <div><div class="stat-val" id="st-today">0</div><div class="stat-lbl">Events Today</div></div>
+    </div>
+  </div>
+
+  <!-- FILTERS -->
+  <div class="filter-bar">
+    <input type="text" id="search-inp" placeholder="🔍  Search actor, action, target…" oninput="applyFilters()"/>
+    <select id="action-filter" onchange="applyFilters()">
+      <option value="">All Actions</option>
+      <option>LOGIN</option><option>LOGIN_FAIL</option><option>LOGIN_OTP</option>
+      <option>REGISTER</option><option>CONSENT</option>
+      <option>CREATE_APPT</option><option>UPDATE_APPT_STATUS</option>
+      <option>CREATE_PRESCRIPTION</option><option>UPDATE_AVAILABILITY</option>
+      <option>TOTP_SETUP</option><option>TOTP_VERIFY</option>
+    </select>
+    <select id="role-filter" onchange="applyFilters()">
+      <option value="">All Roles</option>
+      <option>doctor</option><option>receptionist</option><option>patient</option>
+    </select>
+    <select id="date-filter" onchange="applyFilters()">
+      <option value="">All Time</option>
+      <option value="today">Today</option>
+      <option value="week">This Week</option>
+      <option value="month">This Month</option>
+    </select>
+    <button class="clear-btn" onclick="clearFilters()">Clear</button>
+  </div>
+
+  <!-- TABLE -->
+  <div class="table-card">
+    <div class="table-hdr">
+      <h2>Event Log</h2>
+      <span id="result-count">Loading…</span>
+    </div>
+    <div id="table-body"><div class="spinner"><div class="spin"></div></div></div>
+  </div>
+</main>
+
+<script>
+  const SUPABASE_URL      = 'https://opggbcjkqnkwcaptmszy.supabase.co';
+  const SUPABASE_ANON_KEY = 'sb_publishable_PI_Kg3Jccqchl9Q5WSPUIg_ftk2OmCF';
+  const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  let allLogs = [];
+
+  const ACTION_COLORS = {
+    LOGIN:                  'ab-login',
+    LOGIN_OTP:              'ab-login_otp',
+    LOGIN_FAIL:             'ab-login_fail',
+    REGISTER:               'ab-register',
+    CONSENT:                'ab-consent',
+    CREATE_APPT:            'ab-create',
+    UPDATE_APPT_STATUS:     'ab-update',
+    CREATE_PRESCRIPTION:    'ab-create',
+    UPDATE_AVAILABILITY:    'ab-update',
+    TOTP_SETUP:             'ab-totp',
+    TOTP_VERIFY:            'ab-totp',
+  };
+
+  const ACTION_ICONS = {
+    LOGIN:'🔑', LOGIN_OTP:'📱', LOGIN_FAIL:'🚫', REGISTER:'✨', CONSENT:'📋',
+    CREATE_APPT:'📅', UPDATE_APPT_STATUS:'✏️', CREATE_PRESCRIPTION:'💊',
+    UPDATE_AVAILABILITY:'📆', TOTP_SETUP:'🔒', TOTP_VERIFY:'✅'
+  };
+
+  // ── INIT ─────────────────────────────────────────────────────────────
+  window.addEventListener('load', async () => {
+    const recept = sessionStorage.getItem('receptionist');
+    if (!recept) { document.getElementById('access-denied').classList.add('show'); return; }
+    document.getElementById('main-content').style.display = 'block';
+    await loadLogs();
+    subscribeRealtime();
+  });
+
+  async function loadLogs() {
+    document.getElementById('table-body').innerHTML = '<div class="spinner"><div class="spin"></div></div>';
+    const { data, error } = await sb.from('audit_logs')
+      .select('*').order('created_at',{ascending:false}).limit(500);
+
+    if (error) {
+      document.getElementById('table-body').innerHTML =
+        `<div class="empty"><div class="ei">⚠️</div><p>${error.message}</p></div>`;
+      return;
+    }
+    allLogs = data || [];
+    updateStats();
+    applyFilters();
+  }
+
+  // ── STATS ─────────────────────────────────────────────────────────────
+  function updateStats() {
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('st-total').textContent  = allLogs.length;
+    document.getElementById('st-fail').textContent   = allLogs.filter(l=>l.action==='LOGIN_FAIL').length;
+    document.getElementById('st-login').textContent  = allLogs.filter(l=>l.action==='LOGIN'||l.action==='LOGIN_OTP').length;
+    document.getElementById('st-today').textContent  = allLogs.filter(l=>l.created_at?.startsWith(today)).length;
+  }
+
+  // ── FILTERS ───────────────────────────────────────────────────────────
+  function applyFilters() {
+    const search = document.getElementById('search-inp').value.toLowerCase();
+    const action = document.getElementById('action-filter').value;
+    const role   = document.getElementById('role-filter').value;
+    const dateF  = document.getElementById('date-filter').value;
+    const today  = new Date(); today.setHours(0,0,0,0);
+
+    const filtered = allLogs.filter(l => {
+      const matchSearch = !search || [l.action,l.actor_id,l.actor_role,l.target_table,l.target_id]
+        .join(' ').toLowerCase().includes(search);
+      const matchAction = !action || l.action === action;
+      const matchRole   = !role   || l.actor_role === role;
+      let matchDate = true;
+      if (dateF && l.created_at) {
+        const d = new Date(l.created_at);
+        if (dateF==='today')
+          matchDate = d >= today;
+        else if (dateF==='week') {
+          const wk = new Date(today); wk.setDate(today.getDate()-today.getDay());
+          matchDate = d >= wk;
+        } else if (dateF==='month') {
+          matchDate = d.getMonth()===today.getMonth() && d.getFullYear()===today.getFullYear();
+        }
+      }
+      return matchSearch && matchAction && matchRole && matchDate;
+    });
+
+    renderTable(filtered);
+  }
+
+  function clearFilters() {
+    document.getElementById('search-inp').value='';
+    document.getElementById('action-filter').value='';
+    document.getElementById('role-filter').value='';
+    document.getElementById('date-filter').value='';
+    applyFilters();
+  }
+
+  // ── RENDER TABLE ─────────────────────────────────────────────────────
+  function renderTable(logs) {
+    document.getElementById('result-count').textContent = logs.length+' event'+(logs.length!==1?'s':'');
+    if (!logs.length) {
+      document.getElementById('table-body').innerHTML =
+        '<div class="empty"><div class="ei">📭</div><p>No events match your filters.</p></div>';
+      return;
+    }
+
+    const rows = logs.map((l,i) => {
+      const badgeCls = ACTION_COLORS[l.action] || 'ab-default';
+      const roleCls  = l.actor_role ? 'role-'+l.actor_role : 'role-unknown';
+      const icon     = ACTION_ICONS[l.action] || '📌';
+      const ts       = l.created_at ? new Date(l.created_at).toLocaleString('en-IN',{
+        day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit',second:'2-digit'
+      }) : '—';
+      const meta = l.meta ? JSON.stringify(l.meta,null,2) : null;
+
+      return `
+        <tr>
+          <td><span class="action-badge ${badgeCls}">${icon} ${l.action||'—'}</span></td>
+          <td class="mono">${l.actor_id||'—'}</td>
+          <td><span class="role-pill ${roleCls}">${l.actor_role||'—'}</span></td>
+          <td style="font-size:12px;color:var(--muted);">${l.target_table||'—'}</td>
+          <td class="mono">${(l.target_id||'').slice(0,20)}</td>
+          <td class="mono">${l.ip||'—'}</td>
+          <td style="font-size:12px;">${ts}</td>
+          <td>${meta?`<button class="detail-toggle" onclick="toggleDetail(this,${i})">+ Meta</button>`:'—'}</td>
+        </tr>
+        <tr class="detail-row" id="detail-${i}" style="display:none;">
+          <td colspan="8"><div class="meta-pre">${meta||''}</div></td>
+        </tr>`;
+    }).join('');
+
+    document.getElementById('table-body').innerHTML = `
+      <table>
+        <thead><tr>
+          <th>Action</th><th>Actor ID</th><th>Role</th>
+          <th>Table</th><th>Target ID</th><th>IP</th><th>Timestamp</th><th></th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>`;
+
+    // Store filtered logs for toggle
+    window._filteredLogs = logs;
+  }
+
+  function toggleDetail(btn, idx) {
+    const row = document.getElementById('detail-'+idx);
+    if (!row) return;
+    const hidden = row.style.display==='none';
+    row.style.display = hidden ? '' : 'none';
+    btn.textContent   = hidden ? '− Meta' : '+ Meta';
+  }
+
+  // ── REAL-TIME ─────────────────────────────────────────────────────────
+  function subscribeRealtime() {
+    sb.channel('audit-realtime')
+      .on('postgres_changes',{event:'INSERT',schema:'public',table:'audit_logs'},payload=>{
+        allLogs.unshift(payload.new);
+        updateStats();
+        applyFilters();
+      })
+      .subscribe();
+  }
+
+  // ── CSV EXPORT ────────────────────────────────────────────────────────
+  function exportCSV() {
+    const logs = window._filteredLogs || allLogs;
+    const headers = ['ID','Action','Actor ID','Actor Role','Target Table','Target ID','IP','Timestamp'];
+    const rows = logs.map(l => [
+      l.id, l.action||'', l.actor_id||'', l.actor_role||'',
+      l.target_table||'', l.target_id||'', l.ip||'',
+      l.created_at||''
+    ].map(v=>`"${String(v).replace(/"/g,'""')}"`).join(','));
+
+    const csv  = [headers.join(','), ...rows].join('\n');
+    const blob = new Blob([csv], { type:'text/csv' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href     = url;
+    a.download = `medicare_audit_${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function logout() { sessionStorage.clear(); window.location.href='login.html'; }
+</script>
+</body>
+</html>

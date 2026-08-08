@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Deployment Checklist — MediCare</title>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
+    :root {
+      --navy:#0d1f33; --navy2:#1a2e44; --teal:#00c9a7; --teal-d:#00a88a;
+      --white:#fff; --off:#f4f8f7; --muted:#718096; --text:#1a202c;
+      --border:#e2e8f0; --red:#ef4444; --green:#10b981; --amber:#f59e0b;
+    }
+    body { font-family:'Instrument Sans',sans-serif; background:var(--off); color:var(--text); min-height:100vh; }
+
+    /* NAV */
+    nav { background:var(--navy); padding:16px 52px; display:flex; align-items:center; justify-content:space-between; }
+    .nav-logo { font-family:'Syne',sans-serif; font-size:18px; font-weight:800; color:#fff; display:flex; align-items:center; gap:10px; text-decoration:none; }
+    .nav-logo span { color:var(--teal); }
+    .nav-back { color:rgba(255,255,255,.6); font-size:13px; text-decoration:none; transition:color .2s; }
+    .nav-back:hover { color:#fff; }
+
+    /* PAGE */
+    .page { max-width:860px; margin:0 auto; padding:44px 24px 80px; }
+    .page-hdr { text-align:center; margin-bottom:40px; }
+    .page-hdr h1 { font-family:'Syne',sans-serif; font-size:clamp(26px,4vw,36px); font-weight:800; color:var(--navy2); margin-bottom:10px; }
+    .page-hdr p  { font-size:15px; color:var(--muted); }
+
+    /* PROGRESS */
+    .progress-wrap { background:var(--white); border-radius:14px; padding:20px 24px; box-shadow:0 2px 12px rgba(0,0,0,.06); margin-bottom:28px; }
+    .progress-top  { display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; }
+    .progress-lbl  { font-family:'Syne',sans-serif; font-size:18px; font-weight:800; color:var(--navy2); }
+    .progress-pct  { font-size:28px; font-weight:800; color:var(--teal-d); }
+    .progress-bar  { height:10px; background:var(--border); border-radius:10px; overflow:hidden; }
+    .progress-fill { height:100%; background:linear-gradient(90deg,var(--teal-d),var(--teal)); border-radius:10px; transition:width .5s cubic-bezier(.4,0,.2,1); }
+    .progress-sub  { font-size:13px; color:var(--muted); margin-top:8px; }
+
+    /* SECTION */
+    .section { margin-bottom:24px; }
+    .section-hdr { display:flex; align-items:center; gap:10px; margin-bottom:12px; }
+    .section-hdr h2 { font-family:'Syne',sans-serif; font-size:17px; font-weight:800; color:var(--navy2); }
+    .section-icon { font-size:22px; }
+    .section-count { margin-left:auto; font-size:12px; color:var(--muted); font-weight:600; }
+
+    /* CHECKLIST ITEMS */
+    .check-list { background:var(--white); border-radius:14px; box-shadow:0 2px 12px rgba(0,0,0,.05); overflow:hidden; }
+    .check-item { display:flex; align-items:flex-start; gap:14px; padding:16px 20px; border-bottom:1px solid #f0f4f8; transition:background .15s; cursor:pointer; }
+    .check-item:last-child { border:none; }
+    .check-item:hover { background:#f8fafc; }
+    .check-item.done { background:#f0fdf4; }
+    .check-item.done:hover { background:#dcfce7; }
+
+    .checkbox { width:22px; height:22px; border-radius:6px; border:2px solid var(--border); display:flex; align-items:center; justify-content:center; flex-shrink:0; margin-top:1px; transition:all .2s; }
+    .check-item.done .checkbox { background:var(--green); border-color:var(--green); }
+    .checkbox svg { width:13px; height:13px; fill:none; stroke:#fff; stroke-width:3; stroke-linecap:round; stroke-linejoin:round; opacity:0; transition:opacity .2s; }
+    .check-item.done .checkbox svg { opacity:1; }
+
+    .check-content { flex:1; }
+    .check-title { font-size:14px; font-weight:600; color:var(--navy2); margin-bottom:3px; transition:color .2s; }
+    .check-item.done .check-title { color:var(--green); text-decoration:line-through; text-decoration-color:rgba(16,185,129,.4); }
+    .check-desc  { font-size:12px; color:var(--muted); line-height:1.5; }
+    .check-item.done .check-desc { opacity:.6; }
+
+    .priority-badge { flex-shrink:0; padding:3px 9px; border-radius:20px; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; margin-top:2px; }
+    .p-critical { background:#fee2e2; color:#991b1b; }
+    .p-high     { background:#fff7ed; color:#9a3412; }
+    .p-medium   { background:#fef9c3; color:#854d0e; }
+    .p-low      { background:#f0fdf4; color:#166534; }
+
+    /* ACTIONS */
+    .actions { display:flex; gap:12px; flex-wrap:wrap; margin-top:28px; }
+    .btn-export { padding:12px 24px; background:var(--navy2); color:#fff; border:none; border-radius:10px; font-family:'Instrument Sans',sans-serif; font-size:14px; font-weight:700; cursor:pointer; transition:transform .2s,box-shadow .2s; }
+    .btn-export:hover { transform:translateY(-1px); box-shadow:0 6px 18px rgba(26,46,68,.25); }
+    .btn-reset  { padding:12px 24px; background:var(--off); border:1.5px solid var(--border); color:var(--muted); border-radius:10px; font-family:'Instrument Sans',sans-serif; font-size:14px; font-weight:600; cursor:pointer; }
+
+    /* DEPLOY READY BANNER */
+    .ready-banner { background:linear-gradient(135deg,#0d6e3a,#10b981); border-radius:16px; padding:24px 28px; display:none; align-items:center; gap:18px; margin-top:24px; animation:pop .4s cubic-bezier(.175,.885,.32,1.275); }
+    .ready-banner.show { display:flex; }
+    @keyframes pop { from{transform:scale(.95);opacity:0} to{transform:scale(1);opacity:1} }
+    .ready-banner .icon { font-size:40px; }
+    .ready-banner h3 { font-family:'Syne',sans-serif; font-size:20px; color:#fff; margin-bottom:4px; }
+    .ready-banner p  { font-size:14px; color:rgba(255,255,255,.8); }
+
+    @media(max-width:640px) { nav{padding:14px 16px;} .page{padding:24px 16px 60px;} }
+  </style>
+</head>
+<body>
+
+<nav>
+  <a href="page1_home.html" class="nav-logo">🏥 MediCare <span>Hospital</span></a>
+  <a href="page1_home.html" class="nav-back">← Back to Website</a>
+</nav>
+
+<div class="page">
+  <div class="page-hdr">
+    <h1>🚀 Production Deployment Checklist</h1>
+    <p>Complete every item before going live with real patient data. Click each item to mark it done.</p>
+  </div>
+
+  <!-- PROGRESS -->
+  <div class="progress-wrap">
+    <div class="progress-top">
+      <div class="progress-lbl">Deployment Progress</div>
+      <div class="progress-pct" id="pct">0%</div>
+    </div>
+    <div class="progress-bar"><div class="progress-fill" id="prog-fill" style="width:0%"></div></div>
+    <div class="progress-sub" id="prog-sub">0 of 0 items complete</div>
+  </div>
+
+  <div id="checklist-container"></div>
+
+  <div class="ready-banner" id="ready-banner">
+    <div class="icon">🎉</div>
+    <div>
+      <h3>You're ready to deploy!</h3>
+      <p>All checklist items are complete. Your MediCare system is production-ready.</p>
+    </div>
+  </div>
+
+  <div class="actions">
+    <button class="btn-export" onclick="exportReport()">⬇️ Export Checklist Report</button>
+    <button class="btn-reset"  onclick="resetAll()">↺ Reset All</button>
+  </div>
+</div>
+
+<script>
+  const CHECKLIST = [
+    {
+      section: '🔐 Security', icon: '🔐',
+      items: [
+        { id:'s1', title:'Generate a strong JWT_SECRET', desc:'Run: node -e "console.log(require(\'crypto\').randomBytes(64).toString(\'hex\'))" — must be at least 64 bytes', priority:'critical' },
+        { id:'s2', title:'Switch to SUPABASE_SERVICE_ROLE_KEY on backend', desc:'Never use the anon key server-side. The service role key bypasses RLS and must stay in .env only.', priority:'critical' },
+        { id:'s3', title:'Set USE_DIRECT_SUPABASE_FALLBACK = false in login.html', desc:'The Supabase fallback is for development only. Remove it before production.', priority:'critical' },
+        { id:'s4', title:'Enable RLS on all sensitive Supabase tables', desc:'Run database_schema.sql in full. Verify each table shows the RLS shield icon in the dashboard.', priority:'critical' },
+        { id:'s5', title:'Revoke UPDATE/DELETE on audit_logs table', desc:'Audit logs must be append-only. The schema SQL includes this — verify it ran correctly.', priority:'critical' },
+        { id:'s6', title:'Change STAFF_CODE from the default', desc:'The default MCRHOSPITAL2024 is publicly visible in this repo. Set a strong custom code in .env.', priority:'critical' },
+        { id:'s7', title:'Configure CORS ALLOWED_ORIGIN to exact frontend domain', desc:'Do not use wildcard (*) in production. Set the exact HTTPS domain of your frontend.', priority:'high' },
+        { id:'s8', title:'Confirm all API endpoints served over HTTPS', desc:'Install SSL certificate (Let\'s Encrypt is free). Never serve the API over HTTP in production.', priority:'high' },
+        { id:'s9', title:'Storage bucket patient-reports set to private', desc:'In Supabase Storage, confirm the bucket is NOT public. Files accessed via signed URLs only.', priority:'high' }
+      ]
+    },
+    {
+      section: '📧 Notifications', icon: '📧',
+      items: [
+        { id:'n1', title:'Configure SMTP credentials (email)', desc:'Set SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS in .env. Test by booking an appointment.', priority:'high' },
+        { id:'n2', title:'Configure Twilio OR MSG91 for SMS', desc:'For India, MSG91 is recommended. Complete DLT registration with TRAI before sending bulk SMS.', priority:'high' },
+        { id:'n3', title:'Verify OTP SMS sends correctly', desc:'Test the full login flow with a real phone number — make sure OTP arrives within 30 seconds.', priority:'high' },
+        { id:'n4', title:'Test appointment confirmation email template', desc:'Book a test appointment and confirm the HTML email looks correct in Gmail, Outlook, and mobile.', priority:'medium' },
+        { id:'n5', title:'Set up reminder cron job', desc:'Deploy reminder.js with PM2: pm2 start reminder.js --name reminders --cron "0 18 * * *"', priority:'medium' }
+      ]
+    },
+    {
+      section: '💳 Payments', icon: '💳',
+      items: [
+        { id:'p1', title:'Replace Razorpay test key with live key', desc:'In payment_booking.html replace rzp_test_... with rzp_live_... key from Razorpay Dashboard.', priority:'critical' },
+        { id:'p2', title:'Set RAZORPAY_KEY_SECRET and RAZORPAY_KEY_ID in .env', desc:'Required for server-side payment verification in payments.js.', priority:'critical' },
+        { id:'p3', title:'Configure Razorpay webhook URL', desc:'In Razorpay Dashboard → Settings → Webhooks, add: https://api.yourdomain.com/api/payments/webhook', priority:'high' },
+        { id:'p4', title:'Set RAZORPAY_WEBHOOK_SECRET in .env', desc:'Copy the webhook secret from Razorpay dashboard. Required for HMAC signature verification.', priority:'high' },
+        { id:'p5', title:'Test end-to-end payment flow in test mode', desc:'Use Razorpay test cards (4111 1111 1111 1111) to verify the full payment → booking → email flow.', priority:'high' }
+      ]
+    },
+    {
+      section: '🗄️ Database', icon: '🗄️',
+      items: [
+        { id:'d1', title:'Run complete database_schema.sql', desc:'Run the full schema in Supabase SQL Editor. Check all tables created including audit_logs and patient_consents.', priority:'critical' },
+        { id:'d2', title:'Add payment columns to appointments table', desc:'ALTER TABLE appointments ADD COLUMN IF NOT EXISTS payment_id text, payment_order_id text, payment_status text, sms_sent boolean DEFAULT false, reminder_sent boolean DEFAULT false, reminder_sent_at timestamptz;', priority:'high' },
+        { id:'d3', title:'Verify all indexes are created', desc:'Check idx_appt_patient, idx_appt_doctor, idx_appt_date, idx_audit_actor exist in Supabase.', priority:'medium' },
+        { id:'d4', title:'Enable Supabase Point-in-Time Recovery', desc:'Upgrade to Pro plan ($25/mo) for daily backups + 30-day PITR. Critical for medical data.', priority:'medium' },
+        { id:'d5', title:'Set up database connection pooling', desc:'In Supabase → Settings → Database, enable PgBouncer for production connection pooling.', priority:'low' }
+      ]
+    },
+    {
+      section: '🚀 Deployment', icon: '🚀',
+      items: [
+        { id:'dep1', title:'Deploy backend to Railway/Render/VPS', desc:'Set all .env variables in the deployment dashboard. Test /api/health endpoint after deploy.', priority:'critical' },
+        { id:'dep2', title:'Deploy frontend files to Netlify/Vercel', desc:'Update API = \'https://your-api-domain.com/api\' in every frontend file before deploying.', priority:'critical' },
+        { id:'dep3', title:'Configure PM2 process manager on VPS', desc:'pm2 start api.js --name medicare-api && pm2 startup && pm2 save', priority:'high' },
+        { id:'dep4', title:'Set up UptimeRobot monitoring', desc:'Add HTTP monitor at https://uptimerobot.com pointing to /api/health. Get alerted on downtime.', priority:'medium' },
+        { id:'dep5', title:'Configure log rotation', desc:'pm2 install pm2-logrotate — prevents log files from filling disk over time.', priority:'low' }
+      ]
+    },
+    {
+      section: '⚖️ Legal & Compliance', icon: '⚖️',
+      items: [
+        { id:'l1', title:'DPDPA 2023: consent modal active for patient signup', desc:'Verify the consent modal appears for new patient registrations and consent is recorded in patient_consents table.', priority:'critical' },
+        { id:'l2', title:'Appoint a Data Protection Officer (DPO)', desc:'Required under DPDPA 2023 for health data processors. Can be part-time. Add email: privacy@yourhospital.com', priority:'high' },
+        { id:'l3', title:'Publish Privacy Policy page', desc:'Create a /privacy page linked from the consent modal. Include data categories, retention, rights, DPO contact.', priority:'high' },
+        { id:'l4', title:'MCI data retention compliance', desc:'Medical records must be retained for 7 years per MCI guidelines. Do NOT delete patient data without legal review.', priority:'high' },
+        { id:'l5', title:'DLT registration for commercial SMS', desc:'Register your entity and templates at https://www.trai.gov.in/dlt before sending bulk SMS in India.', priority:'high' },
+        { id:'l6', title:'SSL certificate installed on all domains', desc:'Verify HTTPS on both the frontend domain and API domain. Let\'s Encrypt is free.', priority:'critical' }
+      ]
+    },
+    {
+      section: '🧪 Testing', icon: '🧪',
+      items: [
+        { id:'t1', title:'Run API test suite', desc:'cd backend && npm test — all tests should pass before deployment.', priority:'high' },
+        { id:'t2', title:'Test full patient flow: register → book → pay → receive email', desc:'Use a real email address to verify the complete end-to-end patient journey.', priority:'high' },
+        { id:'t3', title:'Test doctor login with OTP', desc:'Register a doctor with a real phone number and verify the SMS OTP login flow works.', priority:'high' },
+        { id:'t4', title:'Test receptionist: accept appointment, send SMS', desc:'Accept an appointment from the reception panel and verify the patient receives an SMS confirmation.', priority:'high' },
+        { id:'t5', title:'Test audit trail records all actions', desc:'Perform several actions (login, book, accept) and verify they all appear in the audit_trail page.', priority:'medium' },
+        { id:'t6', title:'Test on mobile browsers', desc:'Test the booking page, patient portal, and login on iOS Safari and Android Chrome.', priority:'medium' }
+      ]
+    }
+  ];
+
+  // ── RENDER ──────────────────────────────────────────────────────────────
+  function render() {
+    const saved = JSON.parse(localStorage.getItem('medicare_checklist') || '{}');
+    const container = document.getElementById('checklist-container');
+    container.innerHTML = '';
+
+    CHECKLIST.forEach(section => {
+      const doneCount = section.items.filter(i => saved[i.id]).length;
+      const html = `
+        <div class="section">
+          <div class="section-hdr">
+            <span class="section-icon">${section.icon}</span>
+            <h2>${section.section}</h2>
+            <span class="section-count">${doneCount}/${section.items.length} done</span>
+          </div>
+          <div class="check-list">
+            ${section.items.map(item => `
+              <div class="check-item ${saved[item.id] ? 'done' : ''}" id="ci-${item.id}" onclick="toggle('${item.id}')">
+                <div class="checkbox">
+                  <svg viewBox="0 0 12 10"><polyline points="1 5 4.5 8.5 11 1"/></svg>
+                </div>
+                <div class="check-content">
+                  <div class="check-title">${item.title}</div>
+                  <div class="check-desc">${item.desc}</div>
+                </div>
+                <span class="priority-badge p-${item.priority}">${item.priority}</span>
+              </div>`).join('')}
+          </div>
+        </div>`;
+      container.innerHTML += html;
+    });
+
+    updateProgress(saved);
+  }
+
+  function toggle(id) {
+    const saved = JSON.parse(localStorage.getItem('medicare_checklist') || '{}');
+    saved[id] = !saved[id];
+    localStorage.setItem('medicare_checklist', JSON.stringify(saved));
+    render();
+  }
+
+  function updateProgress(saved) {
+    const total = CHECKLIST.reduce((s, sec) => s + sec.items.length, 0);
+    const done  = Object.values(saved).filter(Boolean).length;
+    const pct   = total ? Math.round((done / total) * 100) : 0;
+
+    document.getElementById('pct').textContent       = pct + '%';
+    document.getElementById('prog-fill').style.width = pct + '%';
+    document.getElementById('prog-sub').textContent  = `${done} of ${total} items complete`;
+
+    const ready = document.getElementById('ready-banner');
+    if (pct === 100) ready.classList.add('show');
+    else             ready.classList.remove('show');
+
+    // Color the progress bar
+    const fill = document.getElementById('prog-fill');
+    if      (pct < 30) fill.style.background = 'linear-gradient(90deg,#ef4444,#f87171)';
+    else if (pct < 70) fill.style.background = 'linear-gradient(90deg,#f59e0b,#fbbf24)';
+    else               fill.style.background = 'linear-gradient(90deg,var(--teal-d),var(--teal))';
+  }
+
+  function resetAll() {
+    if (!confirm('Reset all checklist progress?')) return;
+    localStorage.removeItem('medicare_checklist');
+    render();
+  }
+
+  function exportReport() {
+    const saved  = JSON.parse(localStorage.getItem('medicare_checklist') || '{}');
+    const total  = CHECKLIST.reduce((s, sec) => s + sec.items.length, 0);
+    const done   = Object.values(saved).filter(Boolean).length;
+    const lines  = [
+      'MediCare Hospital — Deployment Checklist Report',
+      `Generated: ${new Date().toLocaleString('en-IN')}`,
+      `Progress: ${done}/${total} items complete (${Math.round(done/total*100)}%)`,
+      '',
+      ...CHECKLIST.flatMap(sec => [
+        `\n=== ${sec.section} ===`,
+        ...sec.items.map(i => `[${saved[i.id]?'✓':' '}] [${i.priority.toUpperCase()}] ${i.title}`)
+      ])
+    ];
+    const blob = new Blob([lines.join('\n')], { type: 'text/plain' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href = url; a.download = `medicare_deployment_checklist_${new Date().toISOString().split('T')[0]}.txt`;
+    a.click(); URL.revokeObjectURL(url);
+  }
+
+  render();
+</script>
+</body>
+</html>

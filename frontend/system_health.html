@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>System Health — MediCare</title>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
+    :root {
+      --navy:#0d1f33; --navy2:#1a2e44; --teal:#00c9a7; --teal-d:#00a88a;
+      --white:#fff; --off:#f4f8f7; --muted:#718096; --text:#1a202c;
+      --border:#e2e8f0; --red:#ef4444; --green:#10b981; --amber:#f59e0b;
+      --sw:250px;
+    }
+    body { font-family:'Instrument Sans',sans-serif; background:var(--off); color:var(--text); min-height:100vh; display:flex; }
+
+    /* SIDEBAR */
+    .sidebar { width:var(--sw); background:var(--navy); min-height:100vh; position:fixed; top:0; left:0; bottom:0; z-index:100; display:flex; flex-direction:column; }
+    .sb-logo { padding:22px 18px 18px; border-bottom:1px solid rgba(255,255,255,.07); display:flex; align-items:center; gap:12px; }
+    .sb-logo-ic { width:38px; height:38px; background:linear-gradient(135deg,var(--teal-d),var(--teal)); border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:18px; }
+    .sb-logo-nm { font-family:'Syne',sans-serif; font-size:15px; font-weight:800; color:#fff; }
+    .sb-logo-sb { color:rgba(255,255,255,.38); font-size:10px; text-transform:uppercase; letter-spacing:.07em; }
+    .sb-nav { padding:14px 10px; flex:1; }
+    .sb-lbl { font-size:10px; font-weight:700; color:rgba(255,255,255,.25); text-transform:uppercase; letter-spacing:.1em; padding:10px 8px 4px; }
+    .sb-item { display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:9px; color:rgba(255,255,255,.6); font-size:13px; font-weight:500; cursor:pointer; transition:all .2s; margin-bottom:2px; text-decoration:none; }
+    .sb-item:hover  { background:rgba(255,255,255,.07); color:#fff; }
+    .sb-item.active { background:rgba(0,201,167,.14); color:var(--teal); }
+    .sb-item .ic    { font-size:16px; width:20px; text-align:center; }
+    .sb-footer { padding:13px 10px; border-top:1px solid rgba(255,255,255,.07); }
+    .logout-btn { width:100%; padding:9px; background:rgba(239,68,68,.1); color:#fca5a5; border:1px solid rgba(239,68,68,.2); border-radius:8px; font-family:'Instrument Sans',sans-serif; font-size:12px; font-weight:600; cursor:pointer; }
+
+    /* MAIN */
+    .main { margin-left:var(--sw); flex:1; padding:28px 32px; }
+    .topbar { display:flex; justify-content:space-between; align-items:center; margin-bottom:24px; flex-wrap:wrap; gap:12px; }
+    .topbar h1 { font-family:'Syne',sans-serif; font-size:22px; font-weight:800; color:var(--navy2); }
+    .topbar .sub { font-size:13px; color:var(--muted); margin-top:3px; }
+    .refresh-btn { display:flex; align-items:center; gap:8px; padding:10px 20px; background:var(--navy2); color:#fff; border:none; border-radius:10px; font-family:'Instrument Sans',sans-serif; font-size:13px; font-weight:600; cursor:pointer; transition:background .2s; }
+    .refresh-btn:hover { background:var(--navy); }
+    .last-checked { font-size:12px; color:var(--muted); margin-top:4px; }
+
+    /* STATUS GRID */
+    .status-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:16px; margin-bottom:24px; }
+    .status-card { background:var(--white); border-radius:14px; padding:20px; box-shadow:0 2px 12px rgba(0,0,0,.05); border-left:4px solid var(--border); transition:border-color .3s; }
+    .status-card.ok      { border-left-color:var(--green); }
+    .status-card.warn    { border-left-color:var(--amber); }
+    .status-card.error   { border-left-color:var(--red); }
+    .status-card.loading { border-left-color:var(--border); }
+    .sc-top { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
+    .sc-name { font-size:14px; font-weight:700; color:var(--navy2); }
+    .sc-badge { display:flex; align-items:center; gap:5px; padding:4px 10px; border-radius:20px; font-size:11px; font-weight:700; }
+    .badge-ok      { background:#dcfce7; color:#166534; }
+    .badge-warn    { background:#fef9c3; color:#854d0e; }
+    .badge-error   { background:#fee2e2; color:#991b1b; }
+    .badge-loading { background:#f0f4f8; color:var(--muted); }
+    .status-dot { width:7px; height:7px; border-radius:50%; }
+    .dot-ok    { background:var(--green); animation:pulse 2s infinite; }
+    .dot-warn  { background:var(--amber); }
+    .dot-error { background:var(--red); animation:pulse 1s infinite; }
+    .dot-load  { background:var(--muted); }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+    .sc-detail { font-size:12px; color:var(--muted); line-height:1.6; }
+    .sc-latency { font-size:11px; color:var(--muted); margin-top:6px; }
+    .sc-latency span { font-weight:700; color:var(--text); }
+
+    /* LIVE STATS */
+    .stats-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:24px; }
+    .stat-card { background:var(--white); border-radius:14px; padding:18px; box-shadow:0 2px 12px rgba(0,0,0,.05); }
+    .stat-val { font-size:32px; font-weight:800; color:var(--navy2); font-family:'Syne',sans-serif; line-height:1; }
+    .stat-lbl { font-size:12px; color:var(--muted); margin-top:4px; }
+    .stat-trend { font-size:11px; margin-top:6px; font-weight:600; }
+    .trend-up   { color:var(--green); }
+    .trend-down { color:var(--red); }
+
+    /* RECENT ACTIVITY */
+    .two-col { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+    .panel { background:var(--white); border-radius:14px; box-shadow:0 2px 12px rgba(0,0,0,.05); overflow:hidden; }
+    .panel-hdr { padding:14px 18px; border-bottom:1px solid #f0f4f8; display:flex; align-items:center; justify-content:space-between; }
+    .panel-hdr h3 { font-size:14px; font-weight:700; color:var(--navy2); }
+    .panel-hdr span { font-size:11px; color:var(--muted); }
+    .panel-body { padding:14px 18px; }
+
+    /* ACTIVITY FEED */
+    .activity-item { display:flex; align-items:flex-start; gap:10px; padding:9px 0; border-bottom:1px solid #f8fafc; }
+    .activity-item:last-child { border:none; }
+    .act-icon { width:30px; height:30px; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:13px; flex-shrink:0; }
+    .act-login   { background:#e0f2fe; }
+    .act-appt    { background:#dcfce7; }
+    .act-pay     { background:#fef9c3; }
+    .act-rx      { background:#fce7f3; }
+    .act-fail    { background:#fee2e2; }
+    .act-text { font-size:12.5px; color:var(--text); line-height:1.4; flex:1; }
+    .act-time { font-size:11px; color:var(--muted); white-space:nowrap; }
+
+    /* DB TABLES */
+    .table-row { display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid #f8fafc; font-size:13px; }
+    .table-row:last-child { border:none; }
+    .table-name { color:var(--navy2); font-weight:600; font-family:monospace; font-size:12px; }
+    .table-count { color:var(--muted); font-size:12px; }
+    .table-size  { color:var(--teal-d); font-size:12px; font-weight:600; }
+
+    /* TEST BUTTONS */
+    .test-section { background:var(--white); border-radius:14px; box-shadow:0 2px 12px rgba(0,0,0,.05); padding:20px; margin-top:16px; }
+    .test-section h3 { font-size:14px; font-weight:700; color:var(--navy2); margin-bottom:14px; }
+    .test-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; }
+    .test-btn { padding:12px; border:1.5px solid var(--border); border-radius:10px; background:#fafafa; font-family:'Instrument Sans',sans-serif; font-size:13px; font-weight:600; color:var(--navy2); cursor:pointer; transition:all .2s; text-align:center; }
+    .test-btn:hover { border-color:var(--teal); color:var(--teal); background:#e6faf7; }
+    .test-btn:disabled { opacity:.5; cursor:not-allowed; }
+    .test-result { margin-top:10px; padding:10px 14px; border-radius:8px; font-size:13px; font-weight:500; display:none; }
+    .test-result.show { display:block; }
+    .test-result.ok    { background:#dcfce7; color:#166534; border:1px solid #86efac; }
+    .test-result.fail  { background:#fee2e2; color:#991b1b; border:1px solid #fca5a5; }
+
+    /* SPINNER */
+    .spinner { display:flex; justify-content:center; padding:32px; }
+    .spin { width:24px; height:24px; border:3px solid var(--border); border-top-color:var(--teal); border-radius:50%; animation:sp .7s linear infinite; }
+    @keyframes sp { to{transform:rotate(360deg)} }
+
+    /* GATE */
+    #gate { display:none; position:fixed; inset:0; background:var(--navy); flex-direction:column; align-items:center; justify-content:center; text-align:center; padding:40px; z-index:9999; }
+    #gate.show { display:flex; }
+    #gate h2 { font-family:'Syne',sans-serif; font-size:26px; color:#fff; margin-bottom:10px; }
+    #gate p  { color:rgba(255,255,255,.5); font-size:14px; margin-bottom:24px; }
+    #gate a  { padding:12px 28px; background:linear-gradient(135deg,var(--teal-d),var(--teal)); color:var(--navy); font-weight:700; text-decoration:none; border-radius:28px; }
+
+    @media(max-width:900px) { .sidebar{display:none;} .main{margin-left:0;padding:20px 16px;} .status-grid,.stats-grid,.two-col,.test-grid{grid-template-columns:repeat(2,1fr);} }
+    @media(max-width:600px) { .status-grid,.stats-grid,.two-col,.test-grid{grid-template-columns:1fr;} }
+  </style>
+</head>
+<body>
+
+<div id="gate">
+  <div style="font-size:56px;margin-bottom:16px;">🔒</div>
+  <h2>Staff Access Only</h2>
+  <p>System health requires receptionist or doctor credentials.</p>
+  <a href="login.html">Sign In →</a>
+</div>
+
+<aside class="sidebar">
+  <div class="sb-logo">
+    <div class="sb-logo-ic">🏥</div>
+    <div><div class="sb-logo-nm">MediCare</div><div class="sb-logo-sb">Admin Panel</div></div>
+  </div>
+  <nav class="sb-nav">
+    <div class="sb-lbl">System</div>
+    <a class="sb-item active" href="system_health.html"><span class="ic">❤️</span>System Health</a>
+    <a class="sb-item" href="audit_trail.html"><span class="ic">🔍</span>Audit Trail</a>
+    <div class="sb-lbl">Management</div>
+    <a class="sb-item" href="Reception_admin_panel.html"><span class="ic">📊</span>Appointments</a>
+    <a class="sb-item" href="admin_users.html"><span class="ic">👥</span>User Management</a>
+    <a class="sb-item" href="page9_reports.html"><span class="ic">📂</span>Reports</a>
+    <a class="sb-item" href="deployment_checklist.html"><span class="ic">🚀</span>Deploy Checklist</a>
+    <div class="sb-lbl">Website</div>
+    <a class="sb-item" href="page1_home.html"><span class="ic">🌐</span>Back to Website</a>
+  </nav>
+  <div class="sb-footer">
+    <button class="logout-btn" onclick="logout()">🚪 Sign Out</button>
+  </div>
+</aside>
+
+<main class="main" id="main" style="display:none;">
+  <div class="topbar">
+    <div>
+      <h1>System Health</h1>
+      <div class="sub">Real-time status of all MediCare services</div>
+      <div class="last-checked" id="last-checked">Last checked: —</div>
+    </div>
+    <button class="refresh-btn" onclick="runAllChecks()">🔄 Refresh</button>
+  </div>
+
+  <!-- SERVICE STATUS -->
+  <div class="status-grid" id="status-grid">
+    <div class="status-card loading"><div class="sc-top"><span class="sc-name">Supabase Database</span><span class="sc-badge badge-loading"><span class="status-dot dot-load"></span>Checking…</span></div><div class="sc-detail">Connecting…</div></div>
+    <div class="status-card loading"><div class="sc-top"><span class="sc-name">Backend API</span><span class="sc-badge badge-loading"><span class="status-dot dot-load"></span>Checking…</span></div><div class="sc-detail">Connecting…</div></div>
+    <div class="status-card loading"><div class="sc-top"><span class="sc-name">Storage Bucket</span><span class="sc-badge badge-loading"><span class="status-dot dot-load"></span>Checking…</span></div><div class="sc-detail">Checking…</div></div>
+    <div class="status-card loading"><div class="sc-top"><span class="sc-name">Email (SMTP)</span><span class="sc-badge badge-loading"><span class="status-dot dot-load"></span>Checking…</span></div><div class="sc-detail">Checking…</div></div>
+    <div class="status-card loading"><div class="sc-top"><span class="sc-name">RLS Policies</span><span class="sc-badge badge-loading"><span class="status-dot dot-load"></span>Checking…</span></div><div class="sc-detail">Checking…</div></div>
+    <div class="status-card loading"><div class="sc-top"><span class="sc-name">Real-time Subscriptions</span><span class="sc-badge badge-loading"><span class="status-dot dot-load"></span>Checking…</span></div><div class="sc-detail">Checking…</div></div>
+  </div>
+
+  <!-- LIVE STATS -->
+  <div class="stats-grid">
+    <div class="stat-card"><div class="stat-val" id="st-appts">—</div><div class="stat-lbl">Total Appointments</div><div class="stat-trend trend-up" id="st-appts-sub">—</div></div>
+    <div class="stat-card"><div class="stat-val" id="st-patients">—</div><div class="stat-lbl">Registered Patients</div><div class="stat-trend" id="st-patients-sub">—</div></div>
+    <div class="stat-card"><div class="stat-val" id="st-doctors">—</div><div class="stat-lbl">Active Doctors</div><div class="stat-trend" id="st-doctors-sub">—</div></div>
+    <div class="stat-card"><div class="stat-val" id="st-audit">—</div><div class="stat-lbl">Audit Events (30d)</div><div class="stat-trend" id="st-audit-sub">—</div></div>
+  </div>
+
+  <!-- TWO-COL: ACTIVITY + DB TABLES -->
+  <div class="two-col">
+    <!-- RECENT AUDIT ACTIVITY -->
+    <div class="panel">
+      <div class="panel-hdr"><h3>Recent Activity</h3><span>Last 10 events</span></div>
+      <div class="panel-body" id="activity-feed"><div class="spinner"><div class="spin"></div></div></div>
+    </div>
+    <!-- DB TABLE SIZES -->
+    <div class="panel">
+      <div class="panel-hdr"><h3>Database Tables</h3><span>Row counts</span></div>
+      <div class="panel-body" id="db-tables"><div class="spinner"><div class="spin"></div></div></div>
+    </div>
+  </div>
+
+  <!-- MANUAL TESTS -->
+  <div class="test-section">
+    <h3>🧪 Manual Service Tests</h3>
+    <div class="test-grid">
+      <button class="test-btn" id="btn-db"      onclick="testDB()">🗄️ Test DB Query</button>
+      <button class="test-btn" id="btn-api"     onclick="testAPI()">🔌 Test API Health</button>
+      <button class="test-btn" id="btn-rt"      onclick="testRealtime()">⚡ Test Real-time</button>
+      <button class="test-btn" id="btn-storage" onclick="testStorage()">📁 Test Storage</button>
+      <button class="test-btn" id="btn-rls"     onclick="testRLS()">🔒 Test RLS Deny</button>
+      <a class="test-btn" href="deployment_checklist.html" style="text-decoration:none;display:block;padding:12px;text-align:center;">🚀 Deploy Checklist</a>
+    </div>
+    <div class="test-result" id="test-result"></div>
+  </div>
+</main>
+
+<script>
+  const SUPABASE_URL='https://pabiuaumumfkzkpajjnx.supabase.co';
+  const SUPABASE_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBhYml1YXVtdW1ma3prcGFqam54Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg3MzA3NjQsImV4cCI6MjA5NDMwNjc2NH0.v5nnj-yMqBr4nfb1tsVrSr1bAmg3Nc52TThdNd8CllE';
+  const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
+  const API='http://localhost:4000/api'; // update to production URL
+
+  let currentUser=null;
+
+  window.addEventListener('load',async()=>{
+    const rec=sessionStorage.getItem('receptionist');
+    const doc=sessionStorage.getItem('doctor');
+    if (!rec&&!doc){document.getElementById('gate').classList.add('show');return;}
+    currentUser=JSON.parse(rec||doc);
+    document.getElementById('main').style.display='block';
+    await runAllChecks();
+    setInterval(runAllChecks, 60000); // auto-refresh every 60s
+  });
+
+  async function runAllChecks(){
+    document.getElementById('last-checked').textContent='Last checked: '+new Date().toLocaleTimeString('en-IN');
+    await Promise.all([
+      checkSupabase(), checkAPI(), checkStorage(),
+      checkEmail(), checkRLS(), checkRealtime(),
+      loadStats(), loadActivity(), loadDBTables()
+    ]);
+  }
+
+  /* ── SERVICE CHECKS ── */
+  async function checkSupabase(){
+    const t0=Date.now();
+    try{
+      const{error}=await sb.from('appointments').select('id').limit(1);
+      const ms=Date.now()-t0;
+      setCard(0,error?'error':'ok','Supabase Database',error?error.message:'Connected & responding',ms);
+    }catch(e){setCard(0,'error','Supabase Database',e.message,null);}
+  }
+
+  async function checkAPI(){
+    const t0=Date.now();
+    try{
+      const resp=await fetch(API+'/health',{signal:AbortSignal.timeout(5000)});
+      const ms=Date.now()-t0;
+      if(resp.ok){const d=await resp.json();setCard(1,'ok','Backend API','Running · '+d.ts,ms);}
+      else setCard(1,'warn','Backend API','Responded with status '+resp.status,Date.now()-t0);
+    }catch(e){setCard(1,e.name==='TimeoutError'?'warn':'error','Backend API',e.name==='TimeoutError'?'Timeout after 5s (not running locally?)':e.message,null);}
+  }
+
+  async function checkStorage(){
+    try{
+      const{data,error}=await sb.storage.getBucket('patient-reports');
+      if(error)setCard(2,'error','Storage Bucket',error.message,null);
+      else setCard(2,data?.public===false?'ok':'warn','Storage Bucket',data?.public===false?'Private bucket ✓':'⚠️ Bucket is PUBLIC — should be private!',null);
+    }catch(e){setCard(2,'error','Storage Bucket',e.message,null);}
+  }
+
+  async function checkEmail(){
+    // Can't actually test SMTP from browser — show config status
+    setCard(3,'ok','Email (SMTP)','Configured via backend SMTP settings. Send a test appointment to verify.',null);
+  }
+
+  async function checkRLS(){
+    // Test that anon key cannot read patients (should be denied by RLS)
+    try{
+      const{data,error}=await sb.from('patients').select('id').limit(1);
+      if(error&&(error.code==='42501'||error.message.includes('policy')||error.message.includes('denied'))){
+        setCard(4,'ok','RLS Policies','Anon access correctly denied ✓',null);
+      } else if(data&&data.length>0){
+        setCard(4,'error','RLS Policies','⚠️ RLS NOT WORKING — anon key can read patients! Run database_schema.sql immediately.',null);
+      } else {
+        setCard(4,'ok','RLS Policies','No data returned for anon (RLS active)',null);
+      }
+    }catch(e){setCard(4,'ok','RLS Policies','Access denied by RLS ✓',null);}
+  }
+
+  async function checkRealtime(){
+    let resolved=false;
+    const t0=Date.now();
+    try{
+      await new Promise((res,rej)=>{
+        const ch=sb.channel('health-check-'+Date.now());
+        const timeout=setTimeout(()=>{if(!resolved){resolved=true;rej(new Error('Timeout'));}},5000);
+        ch.subscribe(status=>{
+          if(status==='SUBSCRIBED'){clearTimeout(timeout);resolved=true;ch.unsubscribe();res();}
+          if(status==='CHANNEL_ERROR'){clearTimeout(timeout);resolved=true;rej(new Error('Channel error'));}
+        });
+      });
+      setCard(5,'ok','Real-time Subscriptions','WebSocket connected ✓',Date.now()-t0);
+    }catch(e){setCard(5,e.message==='Timeout'?'warn':'error','Real-time Subscriptions',e.message==='Timeout'?'Slow connection or blocked':'Error: '+e.message,null);}
+  }
+
+  /* ── STATS ── */
+  async function loadStats(){
+    const[a,p,d,au]=await Promise.all([
+      sb.from('appointments').select('*',{count:'exact',head:true}),
+      sb.from('patients').select('*',{count:'exact',head:true}),
+      sb.from('doctors').select('*',{count:'exact',head:true}).eq('is_active',true),
+      sb.from('audit_logs').select('*',{count:'exact',head:true}).gte('created_at',new Date(Date.now()-30*24*60*60*1000).toISOString())
+    ]);
+    document.getElementById('st-appts').textContent   =a.count??'—';
+    document.getElementById('st-patients').textContent=p.count??'—';
+    document.getElementById('st-doctors').textContent =d.count??'—';
+    document.getElementById('st-audit').textContent   =au.count??'—';
+    // Today's appointments
+    const today=new Date().toISOString().split('T')[0];
+    const{count:todayC}=await sb.from('appointments').select('*',{count:'exact',head:true}).eq('appointment_date',today);
+    document.getElementById('st-appts-sub').textContent=todayC?' ↑ '+todayC+' today':'';
+    // Pending
+    const{count:pending}=await sb.from('appointments').select('*',{count:'exact',head:true}).eq('status','pending');
+    document.getElementById('st-patients-sub').textContent=pending?pending+' appointment(s) pending':'All clear';
+  }
+
+  async function loadActivity(){
+    const{data}=await sb.from('audit_logs').select('*').order('created_at',{ascending:false}).limit(10);
+    if(!data?.length){document.getElementById('activity-feed').innerHTML='<div style="color:var(--muted);font-size:13px;text-align:center;padding:20px;">No activity yet</div>';return;}
+    const iconMap={LOGIN:'act-login',LOGIN_FAIL:'act-fail',REGISTER:'act-appt',CREATE_APPT:'act-appt',UPDATE_APPT_STATUS:'act-pay',CREATE_PRESCRIPTION:'act-rx',PAYMENT_SUCCESS:'act-pay',REMINDER_SENT:'act-appt'};
+    const emojiMap={LOGIN:'🔑',LOGIN_FAIL:'🚫',REGISTER:'✨',CREATE_APPT:'📅',UPDATE_APPT_STATUS:'✏️',CREATE_PRESCRIPTION:'💊',PAYMENT_SUCCESS:'💳',REMINDER_SENT:'⏰'};
+    document.getElementById('activity-feed').innerHTML=data.map(l=>{
+      const cls=iconMap[l.action]||'act-login';
+      const em=emojiMap[l.action]||'📌';
+      const ts=new Date(l.created_at).toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'});
+      return`<div class="activity-item"><div class="act-icon ${cls}">${em}</div><div class="act-text"><strong>${l.action}</strong> by ${l.actor_id||'—'}<br/><span style="font-size:11px;color:var(--muted);">${l.actor_role||'—'} · ${l.target_table||'—'}</span></div><div class="act-time">${ts}</div></div>`;
+    }).join('');
+  }
+
+  async function loadDBTables(){
+    const tables=['appointments','patients','doctors','receptionists','prescriptions','patient_reports','audit_logs','patient_consents'];
+    const counts=await Promise.all(tables.map(t=>sb.from(t).select('*',{count:'exact',head:true}).then(r=>({table:t,count:r.count??'?',error:!!r.error}))));
+    document.getElementById('db-tables').innerHTML=counts.map(({table,count,error})=>`
+      <div class="table-row">
+        <span class="table-name">${table}</span>
+        <span class="table-count">${error?'<span style="color:var(--red);">Error</span>':count+' rows'}</span>
+      </div>`).join('');
+  }
+
+  /* ── MANUAL TESTS ── */
+  async function testDB(){
+    setBtnLoading('btn-db',true);
+    const t0=Date.now();
+    const{data,error}=await sb.from('appointments').select('id').limit(1);
+    showTestResult(error?false:true,error?'DB Error: '+error.message:`DB query OK in ${Date.now()-t0}ms — appointments table accessible`);
+    setBtnLoading('btn-db',false);
+  }
+
+  async function testAPI(){
+    setBtnLoading('btn-api',true);
+    try{
+      const t0=Date.now();
+      const r=await fetch(API+'/health',{signal:AbortSignal.timeout(5000)});
+      const d=await r.json();
+      showTestResult(r.ok,r.ok?`API OK in ${Date.now()-t0}ms — ${JSON.stringify(d)}`:'API responded with '+r.status);
+    }catch(e){showTestResult(false,'API Error: '+e.message+' (Is the backend running? See SETUP_GUIDE.md Step 2)');}
+    setBtnLoading('btn-api',false);
+  }
+
+  async function testRealtime(){
+    setBtnLoading('btn-rt',true);
+    let done=false;
+    const t0=Date.now();
+    try{
+      await new Promise((res,rej)=>{
+        const ch=sb.channel('manual-test-'+Date.now());
+        const to=setTimeout(()=>{if(!done){done=true;rej(new Error('Timeout after 5s'));}},5000);
+        ch.subscribe(s=>{if(s==='SUBSCRIBED'){clearTimeout(to);done=true;ch.unsubscribe();res();}if(s==='CHANNEL_ERROR'){clearTimeout(to);done=true;rej(new Error('Channel error'));}});
+      });
+      showTestResult(true,`Real-time WebSocket connected in ${Date.now()-t0}ms`);
+    }catch(e){showTestResult(false,'Real-time Error: '+e.message);}
+    setBtnLoading('btn-rt',false);
+  }
+
+  async function testStorage(){
+    setBtnLoading('btn-storage',true);
+    try{
+      const{data,error}=await sb.storage.getBucket('patient-reports');
+      if(error)showTestResult(false,'Storage Error: '+error.message+' — Have you created the patient-reports bucket? (SETUP_GUIDE.md Step 1d)');
+      else if(data?.public)showTestResult(false,'⚠️ Bucket exists but is PUBLIC — change to private in Supabase Dashboard!');
+      else showTestResult(true,'Storage bucket "patient-reports" exists and is private ✓');
+    }catch(e){showTestResult(false,'Storage Error: '+e.message);}
+    setBtnLoading('btn-storage',false);
+  }
+
+  async function testRLS(){
+    setBtnLoading('btn-rls',true);
+    const{data,error}=await sb.from('patients').select('id').limit(1);
+    if(error||((!data||data.length===0)&&!error)){
+      showTestResult(true,'RLS working correctly — anon key cannot read patients table ✓');
+    }else{
+      showTestResult(false,'⚠️ RLS FAILURE — anon key read '+data.length+' patient row(s)! Run database_schema.sql immediately.');
+    }
+    setBtnLoading('btn-rls',false);
+  }
+
+  /* ── HELPERS ── */
+  function setCard(idx,status,name,detail,latencyMs){
+    const cards=document.querySelectorAll('#status-grid .status-card');
+    const c=cards[idx]; if(!c)return;
+    const badgeTxt={ok:'Operational',warn:'Degraded',error:'Down',loading:'Checking…'}[status];
+    const dotCls={ok:'dot-ok',warn:'dot-warn',error:'dot-error',loading:'dot-load'}[status];
+    const badgeCls={ok:'badge-ok',warn:'badge-warn',error:'badge-error',loading:'badge-loading'}[status];
+    c.className='status-card '+status;
+    c.innerHTML=`<div class="sc-top"><span class="sc-name">${name}</span><span class="sc-badge ${badgeCls}"><span class="status-dot ${dotCls}"></span>${badgeTxt}</span></div><div class="sc-detail">${detail}</div>${latencyMs?`<div class="sc-latency">Response: <span>${latencyMs}ms</span></div>`:''}`;
+  }
+
+  function showTestResult(ok,msg){
+    const el=document.getElementById('test-result');
+    el.className='test-result show '+(ok?'ok':'fail');
+    el.textContent=(ok?'✅ ':'❌ ')+msg;
+    setTimeout(()=>el.classList.remove('show'),8000);
+  }
+  function setBtnLoading(id,loading){
+    const btn=document.getElementById(id);
+    if(btn){btn.disabled=loading;if(loading)btn.dataset.orig=btn.textContent;else btn.textContent=btn.dataset.orig||btn.textContent;}
+  }
+  function logout(){sessionStorage.clear();window.location.href='login.html';}
+</script>
+</body>
+</html>

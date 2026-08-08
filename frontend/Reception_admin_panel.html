@@ -1,0 +1,677 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Reception Panel — MediCare</title>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --navy: #0b2545; --navy2: #1a2e44; --teal: #0d9488; --teal-l: #14b8a6;
+      --white: #ffffff; --bg: #f0f4f8; --muted: #64748b; --text: #1e293b;
+      --border: #e2e8f0; --danger: #ef4444; --success: #10b981; --warning: #f59e0b;
+      --sidebar-w: 250px; --radius: 14px; --shadow: 0 4px 24px rgba(11,37,69,.08);
+      --shadow-sm: 0 2px 8px rgba(11,37,69,.06);
+    }
+    body { font-family:'Instrument Sans',sans-serif; background:var(--bg); color:var(--text); display:flex; min-height:100vh; }
+
+    /* ── SIDEBAR ── */
+    .sidebar { width:var(--sidebar-w); background:var(--navy); display:flex; flex-direction:column;
+      position:fixed; top:0; left:0; bottom:0; z-index:100; overflow:hidden; }
+    .sidebar::before { content:''; position:absolute; top:-80px; right:-80px; width:200px; height:200px;
+      background:radial-gradient(circle,rgba(13,148,136,.25) 0%,transparent 70%); pointer-events:none; }
+    .logo { padding:26px 22px 18px; border-bottom:1px solid rgba(255,255,255,.07); }
+    .logo-mark { width:38px; height:38px; background:var(--teal); border-radius:10px;
+      display:flex; align-items:center; justify-content:center; margin-bottom:10px; font-size:18px; }
+    .logo h1 { font-family:'Syne',sans-serif; font-size:19px; color:#fff; letter-spacing:-.2px; }
+    .logo p  { font-size:11px; color:rgba(255,255,255,.38); margin-top:2px; letter-spacing:.8px; text-transform:uppercase; }
+    .nav { padding:14px 10px; flex:1; overflow-y:auto; }
+    .nav-label { font-size:10px; letter-spacing:1.2px; text-transform:uppercase;
+      color:rgba(255,255,255,.25); padding:10px 10px 5px; font-weight:700; }
+    .nav-item { display:flex; align-items:center; gap:10px; padding:10px 10px; border-radius:8px;
+      color:rgba(255,255,255,.55); font-size:13.5px; font-weight:500; cursor:pointer;
+      margin-bottom:2px; transition:all .2s; text-decoration:none; }
+    .nav-item:hover  { background:rgba(255,255,255,.06); color:rgba(255,255,255,.85); }
+    .nav-item.active { background:var(--teal); color:#fff; box-shadow:0 4px 14px rgba(13,148,136,.35); }
+    .nav-item .icon  { font-size:16px; width:20px; text-align:center; }
+    .nav-badge { margin-left:auto; background:rgba(255,255,255,.15); color:#fff;
+      font-size:11px; padding:2px 7px; border-radius:20px; font-weight:700; }
+    .nav-item.active .nav-badge { background:rgba(0,0,0,.2); }
+    .sidebar-user { padding:14px 16px; border-top:1px solid rgba(255,255,255,.07);
+      display:flex; align-items:center; gap:10px; }
+    .s-avatar { width:36px; height:36px; background:linear-gradient(135deg,var(--teal),#0369a1);
+      border-radius:50%; display:flex; align-items:center; justify-content:center;
+      font-size:14px; color:#fff; font-weight:700; flex-shrink:0; }
+    .s-name  { font-size:13px; color:#fff; font-weight:600; }
+    .s-role  { font-size:11px; color:rgba(255,255,255,.35); }
+    .logout-link { display:flex; align-items:center; gap:7px; padding:9px 10px; margin-top:2px;
+      border-radius:8px; color:rgba(239,68,68,.8); font-size:13px; font-weight:600;
+      cursor:pointer; transition:background .2s; }
+    .logout-link:hover { background:rgba(239,68,68,.1); }
+
+    /* ── MAIN ── */
+    .main { margin-left:var(--sidebar-w); flex:1; display:flex; flex-direction:column; min-height:100vh; }
+    .topbar { background:var(--white); padding:16px 28px; display:flex; align-items:center;
+      justify-content:space-between; border-bottom:1px solid var(--border); position:sticky; top:0; z-index:50; }
+    .topbar h2 { font-family:'Syne',sans-serif; font-size:20px; color:var(--text); }
+    .topbar p  { font-size:12.5px; color:var(--muted); margin-top:1px; }
+    .topbar-right { display:flex; align-items:center; gap:10px; }
+    .live-pill { display:flex; align-items:center; gap:5px; background:#dcfce7; color:#166534;
+      border:1px solid #86efac; padding:4px 10px; border-radius:20px; font-size:11px; font-weight:700; }
+    .live-dot { width:7px; height:7px; background:#22c55e; border-radius:50%; animation:blink 1.6s infinite; }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.35} }
+    .filter-date { padding:7px 12px; border:1px solid var(--border); border-radius:8px;
+      font-family:'Instrument Sans',sans-serif; font-size:13px; outline:none; cursor:pointer; }
+    .filter-date:focus { border-color:var(--teal); }
+    .clear-btn { padding:7px 12px; background:var(--bg); border:1px solid var(--border);
+      border-radius:8px; font-size:12px; font-weight:600; color:var(--muted); cursor:pointer; }
+
+    .content { padding:24px 28px; flex:1; }
+
+    /* STATS */
+    .stats { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:22px; }
+    .stat-card { background:var(--white); border-radius:var(--radius); padding:18px;
+      box-shadow:var(--shadow-sm); border:1px solid var(--border);
+      cursor:pointer; transition:transform .18s,box-shadow .18s,border-color .18s; position:relative; overflow:hidden; }
+    .stat-card:hover { transform:translateY(-2px); box-shadow:var(--shadow); }
+    .stat-card.active { border-color:var(--teal); box-shadow:0 0 0 3px rgba(13,148,136,.15),var(--shadow); }
+    .stat-card::before { content:''; position:absolute; top:0; right:0; width:70px; height:70px;
+      border-radius:0 14px 0 70px; opacity:.07; }
+    .stat-card.c1::before { background:var(--teal); }
+    .stat-card.c2::before { background:#6366f1; }
+    .stat-card.c3::before { background:var(--success); }
+    .stat-card.c4::before { background:var(--danger); }
+    .stat-icon { width:36px; height:36px; border-radius:9px; display:flex; align-items:center; justify-content:center; font-size:15px; margin-bottom:10px; }
+    .c1 .stat-icon { background:rgba(13,148,136,.12); }
+    .c2 .stat-icon { background:rgba(99,102,241,.12); }
+    .c3 .stat-icon { background:rgba(16,185,129,.12); }
+    .c4 .stat-icon { background:rgba(239,68,68,.1); }
+    .stat-val { font-family:'Syne',sans-serif; font-size:28px; color:var(--text); line-height:1; }
+    .stat-lbl { font-size:12px; color:var(--muted); margin-top:4px; font-weight:500; }
+
+    /* TABLE */
+    .table-card { background:var(--white); border-radius:var(--radius); box-shadow:var(--shadow-sm); border:1px solid var(--border); overflow:hidden; }
+    .card-hdr { padding:16px 20px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px; }
+    .card-hdr h3 { font-family:'Syne',sans-serif; font-size:16px; }
+    .ftabs { display:flex; gap:4px; }
+    .ftab { padding:6px 13px; border-radius:6px; font-size:12px; font-weight:600; cursor:pointer;
+      border:none; background:none; color:var(--muted); font-family:'Instrument Sans',sans-serif; transition:all .2s; }
+    .ftab.active { background:var(--teal); color:#fff; }
+    .ftab:hover:not(.active) { background:var(--bg); color:var(--text); }
+
+    table { width:100%; border-collapse:collapse; }
+    thead { background:var(--bg); }
+    thead th { text-align:left; font-size:11px; font-weight:700; text-transform:uppercase;
+      letter-spacing:.6px; color:var(--muted); padding:11px 14px; border-bottom:1px solid var(--border); }
+    tbody tr { border-top:1px solid var(--border); transition:background .15s; }
+    tbody tr:hover td { background:rgba(13,148,136,.03); }
+    tbody td { padding:13px 14px; font-size:13.5px; vertical-align:middle; }
+    .p-avatar { width:32px; height:32px; border-radius:50%; display:flex; align-items:center;
+      justify-content:center; font-size:12px; font-weight:700; color:#fff; flex-shrink:0; }
+    .p-name  { font-weight:600; font-size:13.5px; }
+    .p-phone { font-size:11px; color:var(--muted); margin-top:1px; }
+
+    /* STATUS DROPDOWN */
+    .status-sel { appearance:none; border:none; border-radius:20px;
+      padding:5px 26px 5px 10px; font-size:11px; font-weight:700; font-family:inherit;
+      cursor:pointer; outline:none; transition:box-shadow .2s;
+      background-repeat:no-repeat; background-position:right 7px center; background-size:9px;
+      background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23888'/%3E%3C/svg%3E"); }
+    .status-sel:hover { box-shadow:0 2px 8px rgba(0,0,0,.12); }
+    .sel-pending  { background-color:rgba(99,102,241,.1);  color:#6366f1; }
+    .sel-accepted { background-color:rgba(16,185,129,.1);  color:#059669; }
+    .sel-declined { background-color:rgba(239,68,68,.1);   color:#dc2626; }
+
+    .btn-view { background:var(--bg); color:var(--muted); border:none; padding:5px 9px;
+      border-radius:6px; font-size:13px; cursor:pointer; transition:all .2s; }
+    .btn-view:hover { background:var(--border); color:var(--text); }
+
+    /* TIME SLOT MODAL */
+    .overlay { display:none; position:fixed; inset:0; background:rgba(11,37,69,.5);
+      z-index:200; align-items:center; justify-content:center; backdrop-filter:blur(3px); }
+    .overlay.show { display:flex; }
+    .modal { background:#fff; border-radius:var(--radius); padding:28px;
+      width:480px; max-width:92vw; max-height:90vh; overflow-y:auto;
+      box-shadow:0 20px 60px rgba(11,37,69,.2); animation:mIn .2s ease; }
+    @keyframes mIn { from{transform:scale(.95);opacity:0} to{transform:scale(1);opacity:1} }
+    .modal h3 { font-family:'Syne',sans-serif; font-size:19px; margin-bottom:6px; }
+    .modal .m-sub { font-size:13px; color:var(--muted); margin-bottom:16px; }
+    .modal-patient { background:var(--bg); border-radius:9px; padding:12px 14px; margin-bottom:16px; font-size:13px; }
+    .modal-patient strong { color:var(--text); }
+    .slot-sec-lbl { font-size:12px; font-weight:700; color:var(--muted); text-transform:uppercase;
+      letter-spacing:.05em; margin:12px 0 7px; }
+    .slot-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:6px; }
+    .slot-btn { padding:10px 5px; border:1.5px solid var(--border); border-radius:8px;
+      background:#fafafa; font-family:'Instrument Sans',sans-serif; font-size:12px; font-weight:600;
+      color:var(--text); cursor:pointer; text-align:center; transition:all .15s; }
+    .slot-btn:hover    { border-color:var(--teal); color:var(--teal); background:#e6faf7; }
+    .slot-btn.selected { border-color:var(--teal); background:var(--teal); color:#fff; }
+    .slot-btn.taken    { background:#fee2e2; border-color:#fca5a5; color:#fca5a5; cursor:not-allowed; font-size:11px; }
+    .custom-row { display:flex; align-items:center; gap:8px; margin:10px 0 14px; }
+    .custom-row label { font-size:12px; color:var(--muted); white-space:nowrap; }
+    .custom-row input { flex:1; padding:8px 10px; border:1.5px solid var(--border);
+      border-radius:8px; font-family:'Instrument Sans',sans-serif; font-size:13px; outline:none; }
+    .custom-row input:focus { border-color:var(--teal); }
+    .selected-display { background:#e6faf7; border:1px solid var(--teal); border-radius:8px;
+      padding:9px 13px; font-size:13px; color:#0d9488; font-weight:700; margin-bottom:12px; display:none; }
+    .modal-actions { display:flex; gap:9px; margin-top:16px; }
+    .modal-confirm { flex:1; padding:11px; background:var(--teal); color:#fff; border:none;
+      border-radius:9px; font-family:'Instrument Sans',sans-serif; font-size:14px; font-weight:700;
+      cursor:pointer; transition:background .2s; }
+    .modal-confirm:hover { background:var(--teal-l); }
+    .modal-confirm:disabled { opacity:.6; cursor:not-allowed; }
+    .modal-cancel { padding:11px 18px; background:var(--bg); color:var(--muted); border:none;
+      border-radius:9px; font-family:'Instrument Sans',sans-serif; font-size:14px; font-weight:600; cursor:pointer; }
+    .modal-msg { padding:9px 12px; border-radius:7px; font-size:12px; font-weight:600; margin-top:10px; display:none; }
+    .modal-msg.err { background:#fee2e2; color:#991b1b; display:block; }
+    .modal-msg.info{ background:#e0f2fe; color:#0369a1; display:block; }
+
+    /* TOAST */
+    .toast-wrap { position:fixed; bottom:22px; right:22px; z-index:999; display:flex; flex-direction:column; gap:8px; }
+    .toast { background:var(--navy); color:#fff; padding:13px 17px; border-radius:10px;
+      font-size:13.5px; font-weight:500; box-shadow:0 8px 24px rgba(0,0,0,.2);
+      display:flex; align-items:center; gap:9px; max-width:330px;
+      animation:tIn .3s ease; border-left:4px solid var(--teal); }
+    .toast.err { border-left-color:var(--danger); }
+    @keyframes tIn { from{transform:translateX(110%);opacity:0} to{transform:translateX(0);opacity:1} }
+
+    /* DETAIL MODAL */
+    .det-row { display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid var(--border); font-size:13px; }
+    .det-row:last-child { border:none; }
+    .det-row span:first-child { color:var(--muted); }
+    .det-row span:last-child  { font-weight:600; }
+
+    /* EMPTY */
+    .empty { text-align:center; padding:48px 20px; color:var(--muted); }
+    .empty .ei { font-size:38px; margin-bottom:12px; }
+
+    /* SPINNER */
+    .spinner { display:flex; justify-content:center; padding:40px; }
+    .spin { width:28px; height:28px; border:3px solid var(--border); border-top-color:var(--teal); border-radius:50%; animation:sp .7s linear infinite; }
+    @keyframes sp { to{transform:rotate(360deg)} }
+
+    /* SMS BADGE */
+    .sms-badge { display:inline-flex; align-items:center; gap:3px; padding:2px 7px; border-radius:20px; font-size:10px; font-weight:700; }
+    .sms-sent { background:#dcfce7; color:#166534; }
+    .sms-fail { background:#fee2e2; color:#991b1b; }
+    .sms-pend { background:#fef9c3; color:#854d0e; }
+
+    #access-denied { display:none; position:fixed; inset:0; background:var(--navy);
+      flex-direction:column; align-items:center; justify-content:center;
+      text-align:center; padding:40px; z-index:9999; }
+    #access-denied.show { display:flex; }
+    #access-denied h2 { font-family:'Syne',sans-serif; font-size:26px; color:#fff; margin-bottom:10px; }
+    #access-denied p  { color:rgba(255,255,255,.5); font-size:14px; margin-bottom:24px; }
+    #access-denied a  { padding:12px 28px; background:linear-gradient(135deg,var(--teal),var(--teal-l));
+      color:#fff; font-weight:700; text-decoration:none; border-radius:28px; font-size:14px; }
+
+    @media(max-width:1100px) { .stats{grid-template-columns:repeat(2,1fr);} }
+    @media(max-width:768px)  { .sidebar{display:none;} .main{margin-left:0;} .content{padding:16px;} }
+  </style>
+</head>
+<body>
+
+<div id="access-denied">
+  <div style="font-size:56px;margin-bottom:16px;">🔒</div>
+  <h2>Restricted Access</h2>
+  <p>Sign in as a Receptionist to access the admin panel.</p>
+  <a href="login.html">Sign In →</a>
+</div>
+
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <div class="logo">
+    <div class="logo-mark">🏥</div>
+    <h1>MediCare</h1>
+    <p>Reception Portal</p>
+  </div>
+  <nav class="nav">
+    <div class="nav-label">Main</div>
+    <div class="nav-item active" onclick="setView('dashboard')"><span class="icon">📊</span>Dashboard</div>
+    <div class="nav-item" onclick="setView('appointments')"><span class="icon">📅</span>Appointments<span class="nav-badge" id="pendingBadge">0</span></div>
+    <div class="nav-label">Security & Compliance</div>
+    <a class="nav-item" href="audit_trail.html"><span class="icon">🔍</span>Audit Trail</a>
+    <a class="nav-item" href="page9_reports.html"><span class="icon">📂</span>Patient Reports</a>
+    <div class="nav-label">Website</div>
+    <a class="nav-item" href="page1_home.html"><span class="icon">🌐</span>Back to Website</a>
+  </nav>
+  <div class="sidebar-user">
+    <div class="s-avatar" id="s-av">R</div>
+    <div><div class="s-name" id="s-name">Receptionist</div><div class="s-role">Reception Desk</div></div>
+  </div>
+  <div class="nav" style="padding:4px 10px 10px;">
+    <div class="logout-link" onclick="logout()">🚪 Sign Out</div>
+  </div>
+</aside>
+
+<!-- MAIN -->
+<main class="main">
+  <div class="topbar">
+    <div>
+      <h2 id="pageTitle">Reception Dashboard</h2>
+      <p id="pageSubtitle">Live appointment management</p>
+    </div>
+    <div class="topbar-right">
+      <div class="live-pill"><div class="live-dot"></div>Live</div>
+      <label style="font-size:13px;font-weight:600;color:var(--muted);">Date:</label>
+      <input type="date" class="filter-date" id="filterDate" onchange="onDateFilter()"/>
+      <button class="clear-btn" id="clearDateBtn" style="display:none;" onclick="clearDate()">✕ Clear</button>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- DASHBOARD VIEW -->
+    <div id="view-dashboard">
+      <div class="stats">
+        <div class="stat-card c1 active" id="sc-all"      onclick="filterCard('all')">
+          <div class="stat-icon">📋</div><div class="stat-val" id="st-total">0</div><div class="stat-lbl">Total</div>
+        </div>
+        <div class="stat-card c2" id="sc-pending"  onclick="filterCard('pending')">
+          <div class="stat-icon">⏳</div><div class="stat-val" id="st-pending">0</div><div class="stat-lbl">Pending</div>
+        </div>
+        <div class="stat-card c3" id="sc-accepted" onclick="filterCard('accepted')">
+          <div class="stat-icon">✅</div><div class="stat-val" id="st-accepted">0</div><div class="stat-lbl">Accepted</div>
+        </div>
+        <div class="stat-card c4" id="sc-declined" onclick="filterCard('declined')">
+          <div class="stat-icon">❌</div><div class="stat-val" id="st-declined">0</div><div class="stat-lbl">Declined</div>
+        </div>
+      </div>
+      <div class="table-card">
+        <div class="card-hdr">
+          <div><h3>All Appointments</h3><p style="font-size:12px;color:var(--muted);">Real-time data · click status to change</p></div>
+          <div class="ftabs">
+            <button class="ftab active" onclick="filterTab('all',this)">All</button>
+            <button class="ftab" onclick="filterTab('pending',this)">Pending</button>
+            <button class="ftab" onclick="filterTab('accepted',this)">Accepted</button>
+            <button class="ftab" onclick="filterTab('declined',this)">Declined</button>
+          </div>
+        </div>
+        <div style="overflow-x:auto;" id="table-wrap">
+          <div class="spinner"><div class="spin"></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- APPOINTMENTS VIEW -->
+    <div id="view-appointments" style="display:none;">
+      <div class="table-card">
+        <div class="card-hdr">
+          <h3>Appointment Management</h3>
+          <div class="ftabs">
+            <button class="ftab active" onclick="filterTab('all',this)">All</button>
+            <button class="ftab" onclick="filterTab('pending',this)">Pending</button>
+            <button class="ftab" onclick="filterTab('accepted',this)">Accepted</button>
+            <button class="ftab" onclick="filterTab('declined',this)">Declined</button>
+          </div>
+        </div>
+        <div style="overflow-x:auto;" id="table-wrap-2">
+          <!-- same table injected here too -->
+        </div>
+      </div>
+    </div>
+
+  </div>
+</main>
+
+<!-- SLOT MODAL -->
+<div class="overlay" id="slotModal">
+  <div class="modal">
+    <div style="font-size:32px;margin-bottom:10px;">🕐</div>
+    <h3>Assign Time Slot</h3>
+    <p class="m-sub">Choose a confirmed time slot and send confirmation to the patient.</p>
+    <div class="modal-patient" id="modalPatientInfo"></div>
+    <div class="slot-sec-lbl">🌅 Morning</div>
+    <div class="slot-grid" id="slotMorning"></div>
+    <div class="slot-sec-lbl">☀️ Afternoon</div>
+    <div class="slot-grid" id="slotAfternoon"></div>
+    <div class="slot-sec-lbl">🌆 Evening</div>
+    <div class="slot-grid" id="slotEvening"></div>
+    <div class="custom-row">
+      <label>Custom:</label>
+      <input type="time" id="customTime" oninput="customSlot(this.value)"/>
+    </div>
+    <div class="selected-display" id="selectedDisplay"></div>
+    <div class="modal-msg" id="modalMsg"></div>
+    <div class="modal-actions">
+      <button class="modal-cancel" onclick="closeModal('slotModal')">Cancel</button>
+      <button class="modal-confirm" id="confirmSlotBtn" onclick="confirmSlot()">📧 Confirm & Send</button>
+    </div>
+  </div>
+</div>
+
+<!-- DETAIL MODAL -->
+<div class="overlay" id="detailModal">
+  <div class="modal">
+    <div style="font-size:32px;margin-bottom:10px;">👤</div>
+    <h3>Appointment Details</h3>
+    <div id="detailContent" style="margin-top:14px;"></div>
+    <div class="modal-actions" style="margin-top:16px;">
+      <button class="modal-cancel" style="flex:none;padding:10px 24px;" onclick="closeModal('detailModal')">Close</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast-wrap" id="toastWrap"></div>
+
+<script>
+  const SUPABASE_URL      = 'https://pabiuaumumfkzkpajjnx.supabase.co';
+  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBhYml1YXVtdW1ma3prcGFqam54Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg3MzA3NjQsImV4cCI6MjA5NDMwNjc2NH0.v5nnj-yMqBr4nfb1tsVrSr1bAmg3Nc52TThdNd8CllE';
+  const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  const EMAILJS_SERVICE  = 'service_medicare';
+  const EMAILJS_TEMPLATE = 'template_hiiln3c';
+  const EMAILJS_PUBLIC   = 'pqsDPUO_P3hgRBeHP';
+
+  const MORNING   = ['09:00 AM','09:30 AM','10:00 AM','10:30 AM','11:00 AM','11:30 AM'];
+  const AFTERNOON = ['12:00 PM','12:30 PM','01:00 PM','02:00 PM','02:30 PM','03:00 PM'];
+  const EVENING   = ['03:30 PM','04:00 PM','04:30 PM','05:00 PM','05:30 PM','06:00 PM'];
+  const AVATAR_COLORS = ['#0d9488','#6366f1','#f59e0b','#ef4444','#8b5cf6','#0ea5e9'];
+
+  let appts = [], currentFilter = 'all', currentView = 'dashboard';
+  let pendingAcceptId = null, selectedSlot = null;
+  let doctorSchedules = {};
+
+  // ── INIT ──────────────────────────────────────────────────────────────
+  window.addEventListener('load', async () => {
+    // Auth check
+    const stored = sessionStorage.getItem('receptionist');
+    if (!stored) { document.getElementById('access-denied').classList.add('show'); return; }
+    const rec = JSON.parse(stored);
+    const ini = rec.name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+    document.getElementById('s-av').textContent   = ini;
+    document.getElementById('s-name').textContent = rec.name;
+
+    await loadAppts();
+    subscribeRealtime();
+  });
+
+  async function loadAppts() {
+    renderSpinner('table-wrap');
+    const { data, error } = await sb.from('appointments').select('*').order('created_at',{ascending:false});
+    if (error) { toast('❌ Failed to load: '+error.message, true); return; }
+    appts = (data||[]).map(r => ({
+      id:r.id, patient_id:r.patient_id||'—', name:r.name, email:r.email, phone:r.phone,
+      gender:r.gender, age:r.age, date:r.appointment_date, time:r.time,
+      confirmed_time:r.confirmed_time, subject:r.subject, doctor:r.doctor,
+      status:r.status||'pending', created_at:r.created_at, sms_sent:r.sms_sent
+    }));
+    renderTable(); updateStats();
+  }
+
+  // ── STATS ────────────────────────────────────────────────────────────
+  function updateStats() {
+    const list = dateFiltered(appts);
+    document.getElementById('st-total').textContent    = list.length;
+    document.getElementById('st-pending').textContent  = list.filter(a=>a.status==='pending').length;
+    document.getElementById('st-accepted').textContent = list.filter(a=>a.status==='accepted').length;
+    document.getElementById('st-declined').textContent = list.filter(a=>a.status==='declined').length;
+    document.getElementById('pendingBadge').textContent= list.filter(a=>a.status==='pending').length;
+  }
+
+  function dateFiltered(list) {
+    const d = document.getElementById('filterDate').value;
+    return d ? list.filter(a=>a.date===d) : list;
+  }
+
+  // ── TABLE ─────────────────────────────────────────────────────────────
+  function renderTable() {
+    let list = dateFiltered(appts);
+    if (currentFilter !== 'all') list = list.filter(a=>a.status===currentFilter);
+    const html = buildTableHtml(list);
+    document.getElementById('table-wrap').innerHTML   = html;
+    document.getElementById('table-wrap-2') && (document.getElementById('table-wrap-2').innerHTML = html);
+  }
+
+  function buildTableHtml(list) {
+    if (!list.length) return `<div class="empty"><div class="ei">📭</div><p>No appointments match current filters.</p></div>`;
+    return `<table>
+      <thead><tr>
+        <th>Patient</th><th>Contact</th><th>Demo</th>
+        <th>Doctor & Subject</th><th>Date / Time</th>
+        <th>Confirmed Slot</th><th>Status</th><th>SMS</th><th></th>
+      </tr></thead>
+      <tbody>${list.map(a=>`
+        <tr>
+          <td><div style="display:flex;align-items:center;gap:9px;">
+            <div class="p-avatar" style="background:${AVATAR_COLORS[a.name.charCodeAt(0)%AVATAR_COLORS.length]};">
+              ${a.name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase()}</div>
+            <div><div class="p-name">${a.name}</div>
+              <div style="font-size:11px;color:var(--muted);font-family:monospace;">${a.patient_id}</div>
+            </div></div></td>
+          <td><div style="font-size:13px;">${a.phone||'—'}</div>
+              <div style="font-size:11px;color:var(--muted);">${a.email||'—'}</div></td>
+          <td><div style="font-size:12.5px;">${a.gender||'—'}</div>
+              <div style="font-size:11px;color:var(--muted);">${a.age?a.age+' yrs':'—'}</div></td>
+          <td><div style="font-weight:600;font-size:13px;">${a.doctor||'—'}</div>
+              <div style="font-size:11px;color:var(--muted);">${a.subject||'—'}</div></td>
+          <td><div style="font-weight:600;font-size:13px;">${fmtDate(a.date)}</div>
+              <div style="font-size:11px;color:var(--muted);">${fmtTime(a.time)}</div></td>
+          <td>${a.confirmed_time
+            ? `<span style="background:#e6faf7;color:#0d9488;font-weight:700;padding:3px 9px;border-radius:20px;font-size:12px;">🕐 ${a.confirmed_time}</span>`
+            : `<span style="color:var(--muted);font-size:12px;">Not assigned</span>`}</td>
+          <td><select class="status-sel sel-${a.status}" id="sel-${a.id}"
+              onchange="changeStatus('${a.id}',this.value,this)">
+            <option value="pending"  ${a.status==='pending'  ?'selected':''}>⏳ Pending</option>
+            <option value="accepted" ${a.status==='accepted' ?'selected':''}>✅ Accepted</option>
+            <option value="declined" ${a.status==='declined' ?'selected':''}>❌ Declined</option>
+          </select></td>
+          <td>${a.sms_sent
+            ? '<span class="sms-badge sms-sent">📱 Sent</span>'
+            : '<span class="sms-badge sms-pend">⏳ Pending</span>'}</td>
+          <td><button class="btn-view" onclick="showDetail('${a.id}')">👁</button></td>
+        </tr>`).join('')}
+      </tbody></table>`;
+  }
+
+  // ── STATUS CHANGE ─────────────────────────────────────────────────────
+  async function changeStatus(id, newStatus, sel) {
+    const a = appts.find(x=>x.id===id);
+    if (newStatus==='accepted') {
+      sel.value = a.status; // revert — modal handles save
+      openSlotModal(id); return;
+    }
+    sel.disabled=true; sel.style.opacity='.6';
+    const old = a.status;
+    const { error } = await sb.from('appointments').update({status:newStatus}).eq('id',id);
+    if (error) { toast('❌ '+error.message,true); sel.value=old; sel.disabled=false; sel.style.opacity=''; return; }
+    a.status = newStatus;
+    sel.className = 'status-sel sel-'+newStatus;
+    sel.disabled=false; sel.style.opacity='';
+    if (newStatus==='declined') {
+      sendEmail(a,'declined').catch(()=>{});
+      toast('❌ Appointment declined for '+a.name);
+    } else {
+      toast('⏳ Set back to Pending for '+a.name);
+    }
+    updateStats(); renderTable();
+  }
+
+  // ── SLOT MODAL ────────────────────────────────────────────────────────
+  async function openSlotModal(id) {
+    pendingAcceptId = id; selectedSlot = null;
+    const a = appts.find(x=>x.id===id);
+    document.getElementById('confirmSlotBtn').disabled = false;
+    document.getElementById('confirmSlotBtn').textContent = '📧 Confirm & Send';
+    document.getElementById('selectedDisplay').style.display = 'none';
+    document.getElementById('modalMsg').className = 'modal-msg';
+    document.getElementById('customTime').value = '';
+
+    document.getElementById('modalPatientInfo').innerHTML = `
+      <strong>${a.name}</strong> &nbsp;·&nbsp; ${a.email}<br/>
+      <span style="color:var(--muted);font-size:12px;">📅 ${fmtDate(a.date)} &nbsp;|&nbsp; 👨‍⚕️ ${a.doctor}</span>`;
+
+    // Load taken slots for this doctor on this date
+    const { data:taken } = await sb.from('appointments')
+      .select('confirmed_time,time').eq('doctor',a.doctor).eq('appointment_date',a.date)
+      .in('status',['accepted','pending']).neq('id',id);
+    const takenSet = new Set((taken||[]).map(x=>x.confirmed_time||x.time).filter(Boolean));
+
+    buildSlotGrid('slotMorning',   MORNING,   takenSet, a.confirmed_time);
+    buildSlotGrid('slotAfternoon', AFTERNOON, takenSet, a.confirmed_time);
+    buildSlotGrid('slotEvening',   EVENING,   takenSet, a.confirmed_time);
+
+    if (a.confirmed_time) { selectedSlot=a.confirmed_time; showSelectedDisplay(a.confirmed_time); }
+    document.getElementById('slotModal').classList.add('show');
+  }
+
+  function buildSlotGrid(containerId, slots, takenSet, current) {
+    document.getElementById(containerId).innerHTML = slots.map(t=>{
+      const taken = takenSet.has(t);
+      const sel   = current===t ? ' selected' : '';
+      return `<button class="slot-btn${taken?' taken':''}${sel}" ${taken?'disabled':''} onclick="pickSlot('${t}',this)">${t}${taken?'<br><span style="font-size:9px;">Booked</span>':''}</button>`;
+    }).join('');
+  }
+
+  function pickSlot(t, btn) {
+    document.querySelectorAll('.slot-btn').forEach(b=>b.classList.remove('selected'));
+    btn.classList.add('selected');
+    selectedSlot=t; showSelectedDisplay(t);
+    document.getElementById('customTime').value='';
+  }
+
+  function customSlot(val) {
+    if (!val) return;
+    document.querySelectorAll('.slot-btn').forEach(b=>b.classList.remove('selected'));
+    const [h,m]=val.split(':').map(Number);
+    selectedSlot=(h%12||12)+':'+String(m).padStart(2,'0')+' '+(h<12?'AM':'PM');
+    showSelectedDisplay(selectedSlot);
+  }
+
+  function showSelectedDisplay(t) {
+    const el=document.getElementById('selectedDisplay');
+    el.style.display='block'; el.textContent='✅ Selected: '+t;
+  }
+
+  async function confirmSlot() {
+    const msgEl = document.getElementById('modalMsg');
+    if (!selectedSlot) { msgEl.className='modal-msg err'; msgEl.textContent='⚠️ Please select a time slot.'; return; }
+    const btn = document.getElementById('confirmSlotBtn');
+    btn.disabled=true; btn.textContent='⏳ Sending…';
+
+    const a = appts.find(x=>x.id===pendingAcceptId);
+    try {
+      const { error } = await sb.from('appointments')
+        .update({ status:'accepted', confirmed_time:selectedSlot, sms_sent:false })
+        .eq('id', pendingAcceptId);
+      if (error) throw error;
+
+      a.status='accepted'; a.confirmed_time=selectedSlot;
+
+      // Email confirmation
+      await sendEmail(a,'accepted',selectedSlot).catch(e=>console.warn('Email:',e.message));
+
+      // Mark sms_sent (Twilio handled by backend; mark true here for UI)
+      await sb.from('appointments').update({sms_sent:true}).eq('id',pendingAcceptId).catch(()=>{});
+      a.sms_sent=true;
+
+      closeModal('slotModal');
+      renderTable(); updateStats();
+      toast('✅ Slot '+selectedSlot+' confirmed for '+a.name+'! Email sent.');
+
+    } catch(e) {
+      msgEl.className='modal-msg err'; msgEl.textContent='❌ '+e.message;
+      btn.disabled=false; btn.textContent='📧 Confirm & Send';
+    }
+  }
+
+  // ── EMAIL ─────────────────────────────────────────────────────────────
+  async function sendEmail(a, status, slot) {
+    if (!a.email) return;
+    const s = status==='accepted'?'✅ Confirmed':status==='declined'?'❌ Declined':'Updated';
+    emailjs.init(EMAILJS_PUBLIC);
+    await emailjs.send(EMAILJS_SERVICE, EMAILJS_TEMPLATE, {
+      to_email:a.email, to_name:a.name, patient_id:a.patient_id||'—',
+      doctor:a.doctor||'—', appt_date:fmtDate(a.date),
+      appt_time:slot||fmtTime(a.time), subject:a.subject||'—', phone:a.phone||'—',
+      message:`Dear ${a.name},\n\nYour appointment at MediCare has been ${status}.\n\n`+
+        `Patient ID : ${a.patient_id||'—'}\nDoctor     : ${a.doctor||'—'}\nDate       : ${fmtDate(a.date)}\n`+
+        (slot?`Confirmed  : ${slot}\n`:'')+
+        `Reason     : ${a.subject||'—'}\n\n`+
+        (status==='accepted'?'Please arrive 15 minutes early with a valid photo ID.\n\n':'')+
+        `📍 MediCare, Sector 5, Vaishali, Ghaziabad\n📞 +91 120 456 7890\n\nMediCare Team`
+    });
+  }
+
+  // ── DETAIL MODAL ──────────────────────────────────────────────────────
+  function showDetail(id) {
+    const a = appts.find(x=>x.id===id);
+    document.getElementById('detailContent').innerHTML = [
+      ['Patient',a.name],['Patient ID',a.patient_id],['Email',a.email],['Phone',a.phone||'—'],
+      ['Gender',a.gender||'—'],['Age',a.age?a.age+' yrs':'—'],
+      ['Doctor',a.doctor||'—'],['Date',fmtDate(a.date)],
+      ['Confirmed Slot',a.confirmed_time||'Not assigned'],
+      ['Reason',a.subject||'—'],['Status',a.status],
+      ['SMS Sent',a.sms_sent?'✅ Yes':'⏳ Pending'],
+      ['Booked On',a.created_at?new Date(a.created_at).toLocaleString('en-IN'):'—']
+    ].map(([k,v])=>`<div class="det-row"><span>${k}</span><span>${v}</span></div>`).join('');
+    document.getElementById('detailModal').classList.add('show');
+  }
+
+  // ── FILTERS ───────────────────────────────────────────────────────────
+  function filterCard(f) {
+    currentFilter=f;
+    document.querySelectorAll('.stat-card').forEach(c=>c.classList.remove('active'));
+    document.getElementById('sc-'+f)?.classList.add('active');
+    document.querySelectorAll('.ftab').forEach(b=>{
+      b.classList.toggle('active', b.textContent.trim().toLowerCase()===f||b.textContent.trim().toLowerCase()==='all'&&f==='all');
+    });
+    renderTable();
+  }
+  function filterTab(f,btn) {
+    currentFilter=f;
+    document.querySelectorAll('.ftab').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    document.querySelectorAll('.stat-card').forEach(c=>c.classList.remove('active'));
+    const m={all:'sc-all',pending:'sc-pending',accepted:'sc-accepted',declined:'sc-declined'};
+    document.getElementById(m[f])?.classList.add('active');
+    renderTable();
+  }
+  function onDateFilter() {
+    const d=document.getElementById('filterDate').value;
+    document.getElementById('clearDateBtn').style.display=d?'':'none';
+    document.getElementById('pageSubtitle').textContent=d?`Showing appointments for ${fmtDate(d)}`:'Live appointment management';
+    updateStats(); renderTable();
+  }
+  function clearDate() { document.getElementById('filterDate').value=''; onDateFilter(); }
+
+  // ── REAL-TIME ─────────────────────────────────────────────────────────
+  function subscribeRealtime() {
+    sb.channel('appts-realtime')
+      .on('postgres_changes',{event:'*',schema:'public',table:'appointments'},()=>loadAppts())
+      .subscribe();
+  }
+
+  // ── VIEWS ─────────────────────────────────────────────────────────────
+  function setView(v) {
+    currentView=v;
+    ['dashboard','appointments'].forEach(n=>document.getElementById('view-'+n).style.display=n===v?'block':'none');
+    document.querySelectorAll('.nav-item').forEach(i=>{
+      const oc=i.getAttribute('onclick')||''; i.classList.toggle('active',oc.includes("'"+v+"'"));
+    });
+    const titles={dashboard:'Reception Dashboard',appointments:'Appointments'};
+    document.getElementById('pageTitle').textContent=titles[v]||v;
+    if (v==='appointments') {
+      document.getElementById('table-wrap-2').innerHTML = document.getElementById('table-wrap').innerHTML;
+    }
+  }
+
+  // ── HELPERS ───────────────────────────────────────────────────────────
+  function fmtDate(d) { if (!d) return '—'; return new Date(d+'T00:00:00').toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'}); }
+  function fmtTime(t) { if (!t) return '—'; const [h,m]=t.split(':'); const H=parseInt(h); return (H%12||12)+':'+m+' '+(H<12?'AM':'PM'); }
+  function closeModal(id) { document.getElementById(id).classList.remove('show'); }
+  function renderSpinner(id) { document.getElementById(id).innerHTML='<div class="spinner"><div class="spin"></div></div>'; }
+  function toast(msg,err=false) {
+    const t=document.createElement('div'); t.className='toast'+(err?' err':'');
+    t.innerHTML=msg; document.getElementById('toastWrap').appendChild(t);
+    setTimeout(()=>t.remove(),4500);
+  }
+  function logout() { sessionStorage.clear(); window.location.href='login.html'; }
+
+  document.querySelectorAll('.overlay').forEach(o=>o.addEventListener('click',e=>{if(e.target===o)o.classList.remove('show');}));
+</script>
+</body>
+</html>

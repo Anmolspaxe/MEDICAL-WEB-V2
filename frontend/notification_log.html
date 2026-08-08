@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Notification Log — MediCare</title>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
+    :root {
+      --navy:#0d1f33; --navy2:#1a2e44; --teal:#00c9a7; --teal-d:#00a88a;
+      --white:#fff; --off:#f4f8f7; --muted:#718096; --text:#1a202c;
+      --border:#e2e8f0; --red:#ef4444; --green:#10b981; --amber:#f59e0b;
+      --sw:250px;
+    }
+    body { font-family:'Instrument Sans',sans-serif; background:var(--off); color:var(--text); min-height:100vh; display:flex; }
+
+    .sidebar { width:var(--sw); background:var(--navy); min-height:100vh; position:fixed; top:0; left:0; bottom:0; z-index:100; display:flex; flex-direction:column; }
+    .sb-logo { padding:22px 18px 18px; border-bottom:1px solid rgba(255,255,255,.07); display:flex; align-items:center; gap:12px; }
+    .sb-logo-ic { width:38px; height:38px; background:linear-gradient(135deg,var(--teal-d),var(--teal)); border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:18px; }
+    .sb-logo-nm { font-family:'Syne',sans-serif; font-size:15px; font-weight:800; color:#fff; }
+    .sb-logo-sb { color:rgba(255,255,255,.38); font-size:10px; text-transform:uppercase; letter-spacing:.07em; }
+    .sb-nav { padding:14px 10px; flex:1; }
+    .sb-lbl { font-size:10px; font-weight:700; color:rgba(255,255,255,.25); text-transform:uppercase; letter-spacing:.1em; padding:10px 8px 4px; }
+    .sb-item { display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:9px; color:rgba(255,255,255,.6); font-size:13px; font-weight:500; cursor:pointer; transition:all .2s; margin-bottom:2px; text-decoration:none; }
+    .sb-item:hover  { background:rgba(255,255,255,.07); color:#fff; }
+    .sb-item.active { background:rgba(0,201,167,.14); color:var(--teal); }
+    .sb-item .ic    { font-size:16px; width:20px; text-align:center; }
+    .sb-footer { padding:13px 10px; border-top:1px solid rgba(255,255,255,.07); }
+    .logout-btn { width:100%; padding:9px; background:rgba(239,68,68,.1); color:#fca5a5; border:1px solid rgba(239,68,68,.2); border-radius:8px; font-family:'Instrument Sans',sans-serif; font-size:12px; font-weight:600; cursor:pointer; }
+
+    .main { margin-left:var(--sw); flex:1; padding:28px 32px; }
+    .topbar { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:22px; flex-wrap:wrap; gap:12px; }
+    .topbar h1 { font-family:'Syne',sans-serif; font-size:22px; font-weight:800; color:var(--navy2); }
+    .topbar .sub { font-size:13px; color:var(--muted); margin-top:3px; }
+    .export-btn { padding:10px 20px; background:var(--navy2); color:#fff; border:none; border-radius:10px; font-family:'Instrument Sans',sans-serif; font-size:13px; font-weight:600; cursor:pointer; transition:background .2s; }
+    .export-btn:hover { background:var(--navy); }
+
+    /* STATS */
+    .stats { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:22px; }
+    .stat-card { background:var(--white); border-radius:13px; padding:16px; box-shadow:0 2px 10px rgba(0,0,0,.05); display:flex; align-items:center; gap:12px; }
+    .stat-ic  { width:42px; height:42px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:19px; flex-shrink:0; }
+    .stat-val { font-size:24px; font-weight:700; color:var(--navy2); line-height:1; }
+    .stat-lbl { font-size:12px; color:var(--muted); margin-top:3px; }
+
+    /* FILTER BAR */
+    .filter-bar { background:var(--white); border-radius:12px; padding:13px 18px; box-shadow:0 2px 10px rgba(0,0,0,.05); display:flex; align-items:center; gap:10px; margin-bottom:18px; flex-wrap:wrap; }
+    .filter-bar input, .filter-bar select { padding:8px 11px; border:1.5px solid var(--border); border-radius:8px; font-family:'Instrument Sans',sans-serif; font-size:13px; background:#fafafa; outline:none; transition:border-color .2s; }
+    .filter-bar input:focus, .filter-bar select:focus { border-color:var(--teal); background:#fff; }
+    .filter-bar input { flex:1; min-width:160px; }
+
+    /* TABLE */
+    .table-card { background:var(--white); border-radius:14px; box-shadow:0 2px 12px rgba(0,0,0,.05); overflow:hidden; }
+    .table-hdr  { padding:16px 22px; display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid #f0f4f8; }
+    .table-hdr h2 { font-size:15px; font-weight:700; color:var(--navy2); }
+    table { width:100%; border-collapse:collapse; }
+    thead { background:#f8fafc; }
+    thead th { padding:11px 14px; text-align:left; font-size:11px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:.05em; }
+    tbody tr { border-top:1px solid #f0f4f8; transition:background .15s; }
+    tbody tr:hover { background:#f8fafc; }
+    tbody td { padding:12px 14px; font-size:13px; }
+    .mono { font-family:monospace; font-size:12px; }
+
+    /* BADGES */
+    .ch-badge  { display:inline-flex; align-items:center; gap:4px; padding:3px 9px; border-radius:20px; font-size:11px; font-weight:700; }
+    .ch-sms    { background:#e0f2fe; color:#0369a1; }
+    .ch-email  { background:#fce7f3; color:#9d174d; }
+    .ch-whatsapp { background:#dcfce7; color:#166534; }
+    .st-sent   { background:#dcfce7; color:#166534; }
+    .st-failed { background:#fee2e2; color:#991b1b; }
+    .st-bounced{ background:#fef9c3; color:#854d0e; }
+
+    /* TYPE ICONS */
+    .type-icon { font-size:16px; }
+
+    /* LIVE BADGE */
+    .live-pill { display:flex; align-items:center; gap:5px; background:#dcfce7; color:#166534; border:1px solid #86efac; padding:4px 11px; border-radius:20px; font-size:11px; font-weight:700; }
+    .live-dot  { width:7px; height:7px; background:#22c55e; border-radius:50%; animation:blink 1.6s infinite; }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.35} }
+
+    .spinner { display:flex; justify-content:center; padding:40px; }
+    .spin { width:28px; height:28px; border:3px solid var(--border); border-top-color:var(--teal); border-radius:50%; animation:sp .7s linear infinite; }
+    @keyframes sp { to{transform:rotate(360deg)} }
+    .empty { text-align:center; padding:48px 20px; color:var(--muted); }
+    .empty .ei { font-size:44px; margin-bottom:10px; }
+    .empty p   { font-size:13px; }
+
+    #gate { display:none; position:fixed; inset:0; background:var(--navy); flex-direction:column; align-items:center; justify-content:center; text-align:center; padding:40px; z-index:9999; }
+    #gate.show { display:flex; }
+    #gate h2 { font-family:'Syne',sans-serif; font-size:26px; color:#fff; margin-bottom:10px; }
+    #gate p  { color:rgba(255,255,255,.5); font-size:14px; margin-bottom:24px; }
+    #gate a  { padding:12px 28px; background:linear-gradient(135deg,var(--teal-d),var(--teal)); color:var(--navy); font-weight:700; text-decoration:none; border-radius:28px; }
+
+    @media(max-width:900px) { .sidebar{display:none;} .main{margin-left:0;padding:20px 16px;} .stats{grid-template-columns:repeat(2,1fr);} }
+  </style>
+</head>
+<body>
+
+<div id="gate">
+  <div style="font-size:56px;margin-bottom:16px;">🔒</div>
+  <h2>Reception Staff Only</h2>
+  <p>Notification log requires receptionist credentials.</p>
+  <a href="login.html">Sign In →</a>
+</div>
+
+<aside class="sidebar">
+  <div class="sb-logo">
+    <div class="sb-logo-ic">🏥</div>
+    <div><div class="sb-logo-nm">MediCare</div><div class="sb-logo-sb">Admin Panel</div></div>
+  </div>
+  <nav class="sb-nav">
+    <div class="sb-lbl">Communication</div>
+    <a class="sb-item active" href="notification_log.html"><span class="ic">📨</span>Notification Log</a>
+    <a class="sb-item" href="audit_trail.html"><span class="ic">🔍</span>Audit Trail</a>
+    <div class="sb-lbl">Management</div>
+    <a class="sb-item" href="Reception_admin_panel.html"><span class="ic">📊</span>Appointments</a>
+    <a class="sb-item" href="admin_users.html"><span class="ic">👥</span>User Management</a>
+    <a class="sb-item" href="system_health.html"><span class="ic">❤️</span>System Health</a>
+    <div class="sb-lbl">Website</div>
+    <a class="sb-item" href="page1_home.html"><span class="ic">🌐</span>Back to Website</a>
+  </nav>
+  <div class="sb-footer">
+    <button class="logout-btn" onclick="logout()">🚪 Sign Out</button>
+  </div>
+</aside>
+
+<main class="main" id="main" style="display:none;">
+  <div class="topbar">
+    <div>
+      <h1>Notification Log</h1>
+      <div class="sub">Every SMS and email sent by MediCare — append-only record</div>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;">
+      <div class="live-pill"><div class="live-dot"></div>Live</div>
+      <button class="export-btn" onclick="exportCSV()">⬇️ Export CSV</button>
+    </div>
+  </div>
+
+  <!-- STATS -->
+  <div class="stats">
+    <div class="stat-card"><div class="stat-ic" style="background:#e0f2fe;">📱</div><div><div class="stat-val" id="st-sms">0</div><div class="stat-lbl">SMS Sent</div></div></div>
+    <div class="stat-card"><div class="stat-ic" style="background:#fce7f3;">📧</div><div><div class="stat-val" id="st-email">0</div><div class="stat-lbl">Emails Sent</div></div></div>
+    <div class="stat-card"><div class="stat-ic" style="background:#fee2e2;">❌</div><div><div class="stat-val" id="st-failed">0</div><div class="stat-lbl">Failed</div></div></div>
+    <div class="stat-card"><div class="stat-ic" style="background:#dcfce7;">✅</div><div><div class="stat-val" id="st-today">0</div><div class="stat-lbl">Sent Today</div></div></div>
+  </div>
+
+  <!-- FILTER BAR -->
+  <div class="filter-bar">
+    <input type="text" id="search-inp" placeholder="🔍  Search recipient, type, appointment ID…" oninput="applyFilters()"/>
+    <select id="channel-filter" onchange="applyFilters()">
+      <option value="">All Channels</option>
+      <option value="sms">SMS</option>
+      <option value="email">Email</option>
+      <option value="whatsapp">WhatsApp</option>
+    </select>
+    <select id="type-filter" onchange="applyFilters()">
+      <option value="">All Types</option>
+      <option>CONFIRM</option>
+      <option>DECLINE</option>
+      <option>REMINDER</option>
+      <option>PRESCRIPTION</option>
+      <option>OTP</option>
+    </select>
+    <select id="status-filter" onchange="applyFilters()">
+      <option value="">All Statuses</option>
+      <option value="sent">Sent</option>
+      <option value="failed">Failed</option>
+      <option value="bounced">Bounced</option>
+    </select>
+    <select id="date-filter" onchange="applyFilters()">
+      <option value="">All Time</option>
+      <option value="today">Today</option>
+      <option value="week">This Week</option>
+      <option value="month">This Month</option>
+    </select>
+  </div>
+
+  <!-- TABLE -->
+  <div class="table-card">
+    <div class="table-hdr">
+      <h2>All Notifications</h2>
+      <span id="result-count" style="font-size:12px;color:var(--muted);">Loading…</span>
+    </div>
+    <div id="table-body"><div class="spinner"><div class="spin"></div></div></div>
+  </div>
+</main>
+
+<script>
+  const SUPABASE_URL      = 'https://pabiuaumumfkzkpajjnx.supabase.co';
+  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBhYml1YXVtdW1ma3prcGFqam54Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg3MzA3NjQsImV4cCI6MjA5NDMwNjc2NH0.v5nnj-yMqBr4nfb1tsVrSr1bAmg3Nc52TThdNd8CllE';
+  const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
+
+  let allLogs=[];
+
+  const TYPE_ICONS={ CONFIRM:'✅', DECLINE:'❌', REMINDER:'⏰', PRESCRIPTION:'💊', OTP:'🔐' };
+  const CH_LABELS={ sms:'📱 SMS', email:'📧 Email', whatsapp:'💬 WhatsApp' };
+
+  window.addEventListener('load',async()=>{
+    const rec=sessionStorage.getItem('receptionist');
+    if(!rec){document.getElementById('gate').classList.add('show');return;}
+    document.getElementById('main').style.display='block';
+    await loadLogs();
+    subscribeRealtime();
+  });
+
+  async function loadLogs(){
+    document.getElementById('table-body').innerHTML='<div class="spinner"><div class="spin"></div></div>';
+    const{data,error}=await sb.from('notification_log').select('*').order('created_at',{ascending:false}).limit(500);
+    if(error){
+      // Table may not exist yet if migration_v2.sql hasn't been run
+      document.getElementById('table-body').innerHTML=`<div class="empty"><div class="ei">📭</div><p>No notification logs yet.</p><p style="margin-top:8px;font-size:12px;color:var(--muted);">If this table is missing, run <strong>migration_v2.sql</strong> in Supabase.</p></div>`;
+      return;
+    }
+    allLogs=data||[];
+    updateStats();
+    applyFilters();
+  }
+
+  function updateStats(){
+    const today=new Date().toISOString().split('T')[0];
+    document.getElementById('st-sms').textContent   =allLogs.filter(l=>l.channel==='sms').length;
+    document.getElementById('st-email').textContent =allLogs.filter(l=>l.channel==='email').length;
+    document.getElementById('st-failed').textContent=allLogs.filter(l=>l.status==='failed'||l.status==='bounced').length;
+    document.getElementById('st-today').textContent =allLogs.filter(l=>l.created_at?.startsWith(today)).length;
+  }
+
+  function applyFilters(){
+    const s     =document.getElementById('search-inp').value.toLowerCase();
+    const ch    =document.getElementById('channel-filter').value;
+    const type  =document.getElementById('type-filter').value;
+    const status=document.getElementById('status-filter').value;
+    const dateF =document.getElementById('date-filter').value;
+    const today =new Date(); today.setHours(0,0,0,0);
+
+    const filtered=allLogs.filter(l=>{
+      const ms=!s||(l.recipient||'').toLowerCase().includes(s)||(l.type||'').toLowerCase().includes(s)||(l.appointment_id||'').toLowerCase().includes(s)||(l.patient_id||'').toLowerCase().includes(s);
+      const mc=!ch||l.channel===ch;
+      const mt=!type||l.type===type;
+      const mst=!status||l.status===status;
+      let md=true;
+      if(dateF&&l.created_at){
+        const d=new Date(l.created_at);
+        if(dateF==='today')  md=d>=today;
+        else if(dateF==='week'){const wk=new Date(today);wk.setDate(today.getDate()-today.getDay());md=d>=wk;}
+        else if(dateF==='month')  md=d.getMonth()===today.getMonth()&&d.getFullYear()===today.getFullYear();
+      }
+      return ms&&mc&&mt&&mst&&md;
+    });
+    renderTable(filtered);
+    window._filteredLogs=filtered;
+  }
+
+  function renderTable(logs){
+    document.getElementById('result-count').textContent=logs.length+' notification'+(logs.length!==1?'s':'');
+    if(!logs.length){document.getElementById('table-body').innerHTML='<div class="empty"><div class="ei">📭</div><p>No notifications match your filters.</p></div>';return;}
+    document.getElementById('table-body').innerHTML=`<table>
+      <thead><tr><th>Channel</th><th>Type</th><th>Recipient</th><th>Patient ID</th><th>Provider</th><th>Status</th><th>Timestamp</th></tr></thead>
+      <tbody>${logs.map(l=>{
+        const chBadge=`<span class="ch-badge ch-${l.channel}">${CH_LABELS[l.channel]||l.channel}</span>`;
+        const stBadge=`<span class="ch-badge st-${l.status||'sent'}">${l.status||'sent'}</span>`;
+        const typeIcon=TYPE_ICONS[l.type]||'📌';
+        const ts=l.created_at?new Date(l.created_at).toLocaleString('en-IN',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}):'—';
+        return`<tr>
+          <td>${chBadge}</td>
+          <td><span class="type-icon">${typeIcon}</span> <span style="font-size:13px;font-weight:600;">${l.type||'—'}</span></td>
+          <td class="mono">${l.recipient||'—'}</td>
+          <td class="mono">${l.patient_id||'—'}</td>
+          <td style="font-size:12px;color:var(--muted);">${l.provider||'—'}</td>
+          <td>${stBadge}${l.error?`<div style="font-size:10px;color:var(--red);margin-top:3px;">${l.error.slice(0,50)}</div>`:''}</td>
+          <td style="font-size:12px;">${ts}</td>
+        </tr>`;
+      }).join('')}</tbody></table>`;
+  }
+
+  function subscribeRealtime(){
+    sb.channel('notif-log-realtime')
+      .on('postgres_changes',{event:'INSERT',schema:'public',table:'notification_log'},payload=>{
+        allLogs.unshift(payload.new);
+        updateStats();
+        applyFilters();
+      }).subscribe();
+  }
+
+  function exportCSV(){
+    const logs=window._filteredLogs||allLogs;
+    const headers=['ID','Channel','Type','Recipient','Patient ID','Provider','Status','Error','Timestamp'];
+    const rows=logs.map(l=>[l.id,l.channel||'',l.type||'',l.recipient||'',l.patient_id||'',l.provider||'',l.status||'',l.error||'',l.created_at||''].map(v=>`"${String(v).replace(/"/g,'""')}"`).join(','));
+    const csv=[headers.join(','),...rows].join('\n');
+    const blob=new Blob([csv],{type:'text/csv'});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');a.href=url;a.download=`medicare_notifications_${new Date().toISOString().split('T')[0]}.csv`;a.click();URL.revokeObjectURL(url);
+  }
+
+  function logout(){sessionStorage.clear();window.location.href='login.html';}
+</script>
+</body>
+</html>
